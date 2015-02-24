@@ -65,7 +65,7 @@ end
 
 function v = get_vbct()
     global t
-    v = sin(t.curr);
+    v = 
 end
 
 function [Mvv,Kvs,Mss,Ksv] = elementMatrix(e)

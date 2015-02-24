@@ -1,0 +1,21 @@
+
+E = prop(1);                    % e : young's modulus
+rho = prop(2);                  % rho0 : mass density
+cp = prop(3);                   % cp : specific heat
+thet = prop(4);                 % alpha : coefficient of thermal expansion
+kai = prop(5);                  % kai : the fraction of plastic work converted to heat
+htc = prop(6);                  % heat transfer coefficent for convection boundary condition
+AreaXS = prop(7);               % cross section area of 1d model
+tcond = prop(8);                % thermal conductivity
+alphaparam = prop(9);
+imp = prop(10);                 % imperfection percent
+imx = prop(11);                 % center of imperfection
+impradi = prop(12);             % imperfection radius
+eps0dot = prop(13);             % eps0dot : reference strain rate
+m = prop(14);                   % m: rate senstivity parameter
+sig0 = prop(15);                % sig0 : yield stress
+eps0 = prop(16);                % eps0 : yield strain
+nn = prop(17);                  % n : strain hardening exponent
+t0 = prop(18);                  % t0 : reference temperature
+del = prop(19);                 % del : thermal softening parameter
+k = prop(20);                   % k : thermal softening parameter
