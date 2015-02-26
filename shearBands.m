@@ -5,7 +5,6 @@ function x = shearBands()
     
     setupData();
     getMesh();
-    matrixAssembly();
     
     nnode = 2*N.elem+1;
     
@@ -68,9 +67,10 @@ function v = get_vbct()
     v = sin(t.curr);
 end
 
-function [Mvv,Kvs,Mss,Ksv] = elementMatrix(e)
+function elementMatrix(e)
 %Generates element matrix using two point Gauss quadrature
     global N y
+    global m k
     
     L = N.conn(e,:); %Scatter matrix
     ye = y(L);
@@ -90,39 +90,98 @@ function [Mvv,Kvs,Mss,Ksv] = elementMatrix(e)
     Ns = [1];
     
     f = @(xi) rho*Nv(xi)'*Nv(xi);
-    Mvv = J*(W(1)*f(xi(1))+W(2)*f(xi(2)));
+    m.vv = J*(W(1)*f(xi(1))+W(2)*f(xi(2)));
     
     f = @(xi) Bv'*Ns;
-    Kvs = J*(W(1)*f(xi(1))+W(2)*f(xi(2)));
+    k.vs = J*(W(1)*f(xi(1))+W(2)*f(xi(2)));
     
     f = @(xi) -E*Ns'*Bv;
-    Ksv = J*(W(1)*f(xi(1))+W(2)*f(xi(2)));
+    k.sv = J*(W(1)*f(xi(1))+W(2)*f(xi(2)));
     
     f = @(xi) Ns'*Ns;
-    Mss = J*(W(1)*f(xi(1))+W(2)*f(xi(2)));
+    m.ss = J*(W(1)*f(xi(1))+W(2)*f(xi(2)));
 end
 
-function matrixAssembly()
-    global N M K
-    % Initializations
-    M.vv = zeros(N.eqn,N.eqn);
-    K.vs = zeros(N.eqn,N.elem);
-    M.ss = zeros(N.elem,N.elem);
-    K.sv = zeros(N.elem,N.eqn);
+% function matrixAssembly()
+%     global N M K
+%     
+%     % Initializations
+%     M.vv = zeros(N.eqn,N.eqn);
+%     K.vs = zeros(N.eqn,N.elem);
+%     M.ss = zeros(N.elem,N.elem);
+%     K.sv = zeros(N.elem,N.eqn);
+%     
+%     %Assembly
+%     for e = 1:N.elem
+%         L = N.conn(e,:);    %scatter matrix
+%         [m,k] = elementMatrix(e);
+%         M.vv(L(:),L(:)) = M.vv(L(:),L(:))+m.vv;
+%         K.vs(L(:),e) = K.vs(L(:),e)+k.vs;
+%         M.ss(e,e) = M.ss(e,e)+m.ss;
+%         K.sv(e,L(:)) = K.sv(e,L(:))+k.sv;
+%     end
+%     M.vv = sparse(M.vv);
+%     K.vs = sparse(K.vs);
+%     M.ss = sparse(M.ss);
+%     K.sv = sparse(K.sv);
+% end
+
+function r = elementResidual(xv,xs)
+    global IntPar t
+    global m k
     
-    %Assembly
+    a = IntPar.alpha;
+    
+    n = 1;
+    
+    dt = t.dt;
+    
+    r.v = (m.vv/dt)*(xv{n+1}-xv{n})-(1-a)*k.vs*xs{n}-a*k.vs*xs{n+1};
+    r.s = (m.ss/dt)*(xs{n+1}-xs{n})-(1-a)*k.sv*xv{n}-a*k.sv*xv{n+1};
+end
+
+function j = elementJacobian()
+    global t IntPar
+    global m k
+    
+    a = IntPar.alpha;
+    dt = t.dt;
+    
+    j.vv = (1/dt)*m.vv;
+    j.vs = -a*k.vs;
+    j.sv = -a*k.sv;
+    j.ss = (1/dt)*m.ss;
+end
+
+function [J,R] = matrixAssembly(xt,xn)
+    global N
+    
+    R.v = zeros(N.eqn,1);
+    R.s = zeros(N.elem,1);
+    J.vv = zeros(N.eqn,N.eqn);
+    J.vs = zeros(N.eqn,N.elem);
+    J.ss = zeros(N.elem,N.elem);
+    J.sv = zeros(N.elem,N.eqn);
+
     for e = 1:N.elem
-        L = N.conn(e,:);    %scatter matrix
-        [mvv,kvs,mss,ksv] = elementMatrix(e);
-        M.vv(L(:),L(:)) = M.vv(L(:),L(:))+mvv;
-        K.vs(L(:),e) = K.vs(L(:),e)+kvs;
-        M.ss(e,e) = M.ss(e,e)+mss;
-        K.sv(e,L(:)) = K.sv(e,L(:))+ksv;
+        L = N.conn(e,:);
+        xv = num2cell([xt(L) xn(L)],1);
+        xs = num2cell([xt(e+N.node) xn(e+N.node)],1);
+        elementMatrix(e);
+        
+        r = elementResidual(xv,xs);
+        R.v(L) = R.v(L)+r.v;
+        R.s(e) = R.s(e)+r.s;
+        
+        j = elementJacobian();
+        J.vv(L(:),L(:)) = J.vv(L(:),L(:))+j.vv;
+        J.vs(L(:),e) = J.vs(L(:),e)+j.vs;
+        J.ss(e,e) = J.ss(e,e)+j.ss;
+        J.sv(e,L(:)) = J.sv(e,L(:))+j.sv;
     end
-    M.vv = sparse(M.vv);
-    K.vs = sparse(K.vs);
-    M.ss = sparse(M.ss);
-    K.sv = sparse(K.sv);
+    R = [R.v; R.s];
+    J = [J.vv J.vs; J.sv J.ss];
+    J = sparse(J);
 end
 
 function x = newtonIter()
@@ -138,12 +197,12 @@ function x = newtonIter()
     
     for k = 1:niter
         
-        J = assembleJacobian();
+        [J,R] = matrixAssembly(x0,x{k});
+
         if condest(J) == Inf
             J = J+diag(ones(1,nnode)*1E-7);
         end
         
-        R = evaluateResidual(x{k});
         if normest(R) < ntol
             break
         end
@@ -151,32 +210,4 @@ function x = newtonIter()
         x{k+1} = x{k}+dx;
     end
     x = x{k};
-end
-
-function R = evaluateResidual(x)
-    global t X M K IntPar N
-    a = IntPar.alpha;
-    
-    xt = X{t.iter};
-    xv = num2cell([xt(1:N.node) x(1:N.node)],1);
-    xs = num2cell([xt(N.node+1:end) x(N.node+1:end)],1);
-    n = 1;
-    
-    dt = t.dt;
-    
-    rv = (M.vv/dt)*(xv{n+1}-xv{n})-(1-a)*K.vs*xs{n}-a*K.vs*xs{n+1};
-    rs = (M.ss/dt)*(xs{n+1}-xs{n})-(1-a)*K.sv*xv{n}-a*K.sv*xv{n+1};
-    R = [rv;rs];
-end
-
-function J = assembleJacobian()
-    global t M K IntPar
-    a = IntPar.alpha;
-    dt = t.dt;
-    
-    Jvv = (1/dt)*M.vv;
-    Jvs = -a*K.vs;
-    Jsv = -a*K.sv;
-    Jss = (1/dt)*M.ss;
-    J = [Jvv Jvs; Jsv Jss];
 end
