@@ -9,14 +9,14 @@ function x = shearBands()
     nnode = 2*N.elem+1;
     
     v0 = 10;
-    X0 = [v0 zeros(1,N.elem-1) -v0 zeros(1,N.elem)]';
+    X0 = [0 v0 zeros(1,N.elem-1) zeros(1,N.elem) ]';
     % Advance in time
     X = [X0 zeros(nnode,t.steps)];
     X = num2cell(X,1);
     for n = 1:t.steps
         t.iter = n;
-        disp(t.iter/t.steps)
         X{n+1} = newtonIter(X{n});
+        t.curr = t.curr+t.dt;
     end
     x = cell2mat(X);
 end
@@ -24,8 +24,8 @@ end
 function setupData()
     global t NewtonPar IntPar
     
-    t.total = 2.5E-6;
-    t.dt = 5E-9;
+    t.total = 4/5000;
+    t.dt = t.total/200;
     t.steps = floor(t.total/t.dt);
     t.curr = 0;
     
@@ -42,16 +42,17 @@ function getMesh()
     global N y
     L = 1E-3;   %length of bar
     
-    y = [-1 0 1];
+    y = [-1 1 0];
     N.elem = 2;
     N.node = N.elem+1;
     N.eqn = N.node;
-    N.conn = [1:N.node-1;2:N.node]';
+    N.conn = [1 3; 3 2];
 end
 
 function v = get_vbct()
     global t
-    v = sin(t.curr);
+    v0 = 10;
+    v = [0 v0*cos(t.curr)]';
 end
 
 function elementMatrix(e)
@@ -154,21 +155,38 @@ function Xk = newtonIter(Xn)
     nnode = 2*N.elem+1;
     
     Xk = Xn;
+    X_BC = get_vbct();
+    [J,R] = matrixAssembly(Xn,Xk);
     
-    for k = 1:niter
-        
+    Xn_D = Xn(1:2);
+    Xn_N = Xn(3:end);
+    J_ND = J(3:nnode,1:2);
+    J_NN = J(3:nnode,3:nnode);
+    R_N = R(3:end);
+    
+    dX_D = -Xn_D + X_BC;
+    dX_N = J_NN\(-R_N+J_ND*dX_D);
+    Xk = [X_BC; Xn_N+dX_N];
+    
+    for k = 2:niter
         [J,R] = matrixAssembly(Xn,Xk);
-        %Jacobian
-        if condest(J) == Inf
-            J = J+diag(ones(1,nnode)*1E-7);
-        end
-        %Residual
-        if normest(R) < ntol
-            break
-        end
-        dXk = -J\R;
         
-        Xk = Xk+dXk;
+        Xk_N = Xk(3:end);
+        J_NN = J(3:nnode,3:nnode);
+        R_N = R(3:end);
+        
+        dXk_N = -J_NN\R_N;
+        Xk_N = Xk_N+dXk_N;
+        Xk = [X_BC; Xk_N+dX_N];
+%         [J,R] = matrixAssembly(Xn,Xk);
+%         %Jacobian
+%         if condest(J) == Inf
+%             J = J+diag(ones(1,nnode)*1E-7);
+%         end
+%         %Residual
+%         if normest(R) < ntol
+%             break
+%         end
     end
 
 end
