@@ -9,14 +9,15 @@ function x = shearBands()
     nnode = 2*N.elem+1;
     
     v0 = 10;
-    X0 = [0 v0 zeros(1,N.elem-1) zeros(1,N.elem) ]';
+    X0 = [0 0 zeros(1,N.elem-1) zeros(1,N.elem) ]';
     % Advance in time
     X = [X0 zeros(nnode,t.steps)];
     X = num2cell(X,1);
     for n = 1:t.steps
         t.iter = n;
-        X{n+1} = newtonIter(X{n});
         t.curr = t.curr+t.dt;
+        X{n+1} = newtonIter(X{n});
+        
     end
     x = cell2mat(X);
 end
@@ -52,7 +53,7 @@ end
 function v = get_vbct()
     global t
     v0 = 10;
-    v = [0 v0*cos(t.curr)]';
+    v = [0 v0*(1-cos(t.curr))/2]';
 end
 
 function elementMatrix(e)
@@ -158,15 +159,15 @@ function Xk = newtonIter(Xn)
     X_BC = get_vbct();
     [J,R] = matrixAssembly(Xn,Xk);
     
-    Xn_D = Xn(1:2);
-    Xn_N = Xn(3:end);
+    Xk_D = Xn(1:2);
+    Xk_N = Xn(3:end);
     J_ND = J(3:nnode,1:2);
     J_NN = J(3:nnode,3:nnode);
     R_N = R(3:end);
     
-    dX_D = -Xn_D + X_BC;
+    dX_D = -Xk_D + X_BC;
     dX_N = J_NN\(-R_N+J_ND*dX_D);
-    Xk = [X_BC; Xn_N+dX_N];
+    Xk = [X_BC; Xk_N+dX_N];
     
     for k = 2:niter
         [J,R] = matrixAssembly(Xn,Xk);
@@ -177,7 +178,7 @@ function Xk = newtonIter(Xn)
         
         dXk_N = -J_NN\R_N;
         Xk_N = Xk_N+dXk_N;
-        Xk = [X_BC; Xk_N+dX_N];
+        Xk = [X_BC; Xk_N];
 %         [J,R] = matrixAssembly(Xn,Xk);
 %         %Jacobian
 %         if condest(J) == Inf
@@ -188,5 +189,4 @@ function Xk = newtonIter(Xn)
 %             break
 %         end
     end
-
 end
