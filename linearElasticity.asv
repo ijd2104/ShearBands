@@ -181,19 +181,13 @@ function [J,R,X] = matrixPartition(J,R,X)
     R.N = RN;
 end
 
-function v = get_vel()
+function v = get_vel();
     global t
     
     a = t.curr/t.ramp;
     if a < 1
-        f = (pi/t.ramp)*sin(a*2*pi);
+        f = (1-cos(a*2*pi))/2;
     else
         f = 0;
     end
     v = v0*f;
-end
-
-function v = get_vbc()
-    vt = get_vel();
-    v = XBCP*vt;
-end
