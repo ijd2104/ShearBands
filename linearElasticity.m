@@ -29,6 +29,7 @@ function setupData()
     t.total = 2E-4; %Time for wave to travel 1m, 1/5000
     t.steps = 2000;
     t.dt = t.total/t.steps;
+    t.ramp = t.total/4;
     t.curr = 0;
     
     %Newton's method parameters
@@ -52,7 +53,7 @@ function getMesh()
 end
 
 function Xk = newtonIter(Xt)
-    global N NewtonPar
+    global NewtonPar
     
     niter = NewtonPar.iter;
     ntol = NewtonPar.NormTol;
@@ -60,7 +61,20 @@ function Xk = newtonIter(Xt)
     X0 = Xt;
     [J,R] = matrixAssembly(Xt,X0);
     [J,R,X] = matrixPartition(J,R,X0);
+    X.BC = get_vbc(X);
+    dX.D = -X.D+X.BC;
+    dX.N = J.NN\(-R.N+J.ND*dX.D);
+    Xk = [X.BC; X.N+dX.N];
     
+    for k = 1:niter
+        [J,R] = matrixAssembly(Xt,Xk);
+        if norm(R) < ntol
+            break
+        end
+        [J,R,X] = matrixPartition(J,R,Xk);
+        dX.N = -J.NN\R.N;
+        Xk = [X.BC; X.N+dX.N];
+    end
 end
 
 function [J,R] = matrixAssembly(Xt,Xn)
@@ -104,7 +118,7 @@ function elementMatrix(e)
     E = 200E9; %Pa
     rho = 7850; %kg/m^3
     
-    L = N.conn(e);
+    L = N.conn(e,:);
     ue = u(L);
     h = abs(ue(2)-ue(1));
     J = h/2;
@@ -137,12 +151,14 @@ function r = elementResidual(xv,xs)
     global TimeIntPar t
     global m k
     
+    xv = num2cell(xv,1);
+    xs = num2cell(xs,1);
     a = TimeIntPar.alpha;
     dt = t.dt;
     n = 1;
     
-    r.v = (m.vv/dt)*(xv(n+1,:)-xv(n,:))-(1-a)*k.vs*xs(n,:)-a*k.vs*xs(n+1,:);
-    r.s = (m.ss/dt)*(xs(n+1,:)-xs(n,:))-(1-a)*k.sv*xv(n,:)-a*k.sv*xv(n+1,:);
+    r.v = (m.vv/dt)*(xv{n+1}-xv{n})-(1-a)*k.vs*xs{n}-a*k.vs*xs{n+1};
+    r.s = (m.ss/dt)*(xs{n+1}-xs{n})-(1-a)*k.sv*xv{n}-a*k.sv*xv{n+1};
 end
 
 function j = elementJacobian(xv,xs)
@@ -172,17 +188,30 @@ function [J,R,X] = matrixPartition(J,R,X)
     XN = X(eN);
     JDN = J(eD,eN);
     JNN = J(eN,eN);
+    RD = R(eD);
     RN = R(eN);
     
     X.D = XD;
     X.N = XN;
     J.DN = JDN;
     J.NN = JNN;
+    R.D = RD;
     R.N = RN;
+    
+    X.BCp = zeros(N.node);
+    for i = 1:size(BC,1)
+        X.BCp(BC(i,1)) = BC(i,2);
+    end
+end
+
+function v = get_vbc(X)
+    vt = get_vel();
+    v = X.BCp*vt;
 end
 
 function v = get_vel()
     global t
+    v0 = 10;
     
     a = t.curr/t.ramp;
     if a < 1
@@ -191,9 +220,4 @@ function v = get_vel()
         f = 0;
     end
     v = v0*f;
-end
-
-function v = get_vbc()
-    vt = get_vel();
-    v = XBCP*vt;
 end
