@@ -174,7 +174,7 @@ function j = elementJacobian(xv,xs)
     j.ss = (1/dt)*m.ss;
 end
 
-function [J,R,X] = matrixPartition(J,R,X)
+function [J,R,X] = matrixPartition(J0,R0,X0)
     global N
     
     BC = [1 0; N.vnode 1];
@@ -184,12 +184,12 @@ function [J,R,X] = matrixPartition(J,R,X)
         eN(eN==eD(i)) = [];
     end
     
-    XD = X(eD);
-    XN = X(eN);
-    JDN = J(eD,eN);
-    JNN = J(eN,eN);
-    RD = R(eD);
-    RN = R(eN);
+    XD = X0(eD);
+    XN = X0(eN);
+    JDN = J0(eD,eN);
+    JNN = J0(eN,eN);
+    RD = R0(eD);
+    RN = R0(eN);
     
     X.D = XD;
     X.N = XN;
@@ -198,7 +198,7 @@ function [J,R,X] = matrixPartition(J,R,X)
     R.D = RD;
     R.N = RN;
     
-    X.BCp = zeros(N.node);
+    X.BCp = zeros(size(BC,1),1);
     for i = 1:size(BC,1)
         X.BCp(BC(i,1)) = BC(i,2);
     end
