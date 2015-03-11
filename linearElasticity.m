@@ -63,7 +63,7 @@ function Xk = newtonIter(Xt)
     [J,R,X] = matrixPartition(J,R,X0);
     X.BC = get_vbc(X);
     dX.D = -X.D+X.BC;
-    dX.N = J.NN\(-R.N+J.ND*dX.D);
+    dX.N = J.NN\(-R.N+J.DN*dX.D);
     Xk = [X.BC; X.N+dX.N];
     
     for k = 1:niter
@@ -184,23 +184,18 @@ function [J,R,X] = matrixPartition(J0,R0,X0)
         eN(eN==eD(i)) = [];
     end
     
-    XD = X0(eD);
-    XN = X0(eN);
-    JDN = J0(eD,eN);
-    JNN = J0(eN,eN);
-    RD = R0(eD);
-    RN = R0(eN);
-    
-    X.D = XD;
-    X.N = XN;
-    J.DN = JDN;
-    J.NN = JNN;
-    R.D = RD;
-    R.N = RN;
+    X.D = X0(eD);
+    X.N = X0(eN);
+    J.DD = J0(eD,eD);
+    J.DN = J0(eD,eN);
+    J.ND = J0(eN,eD);
+    J.NN = J0(eN,eN);
+    R.D = R0(eD);
+    R.N = R0(eN);
     
     X.BCp = zeros(size(BC,1),1);
     for i = 1:size(BC,1)
-        X.BCp(BC(i,1)) = BC(i,2);
+        X.BCp(i) = BC(i,2);
     end
 end
 
