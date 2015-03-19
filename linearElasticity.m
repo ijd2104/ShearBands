@@ -63,7 +63,7 @@ function Xk = newtonIter(Xt)
     [J,R,X] = matrixPartition(J,R,X0);
     X.BC = get_vbc(X);
     dX.D = -X.D+X.BC;
-    dX.N = J.NN\(-R.N+J.DN*dX.D);
+    dX.N = J.NN\(-R.N+J.ND*dX.D);
     Xk = [X.BC; X.N+dX.N];
     
     for k = 1:niter
