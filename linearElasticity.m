@@ -61,11 +61,14 @@ function Xk = newtonIter(Xt)
     X0 = Xt;
     [J,R] = matrixAssembly(Xt,X0);
     [J,R,X] = matrixPartition(J,R,X0);
+    
     X.BC = get_vbc(X);
     dX.D = -X.D+X.BC;
-    dX.N = J.NN\(-R.N+J.ND*dX.D);
+    dX.N = J.NN\(-R.N-J.ND*dX.D);
     Xk = [X.BC; X.N+dX.N];
     Xk = unPartition(Xk);
+    
+
     
     for k = 1:niter
         [J,R] = matrixAssembly(Xt,Xk);
@@ -73,10 +76,13 @@ function Xk = newtonIter(Xt)
             break
         end
         [J,R,X] = matrixPartition(J,R,Xk);
+        
+        X.BC = get_vbc(X);
         dX.N = -J.NN\R.N;
         Xk = [X.BC; X.N+dX.N];
         Xk = unPartition(Xk);
     end
+
 end
 
 function [J,R] = matrixAssembly(Xt,Xn)
@@ -195,9 +201,9 @@ function [J,R,X] = matrixPartition(J0,R0,X0)
     R.D = R0(eD);
     R.N = R0(eN);
     
-    X.BC = zeros(size(BC,1),1);
+    X.BCp = zeros(size(BC,1),1);
     for i = 1:size(BC,1)
-        X.BC(i) = BC(i,2);
+        X.BCp(i) = BC(i,2);
     end
 end
 
@@ -212,7 +218,7 @@ end
 
 function v = get_vbc(X)
     vt = get_vel();
-    v = X.BC*vt;
+    v = X.BCp*vt;
 end
 
 function v = get_vel()
