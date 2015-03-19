@@ -65,6 +65,7 @@ function Xk = newtonIter(Xt)
     dX.D = -X.D+X.BC;
     dX.N = J.NN\(-R.N+J.ND*dX.D);
     Xk = [X.BC; X.N+dX.N];
+    Xk = unPartition(Xk);
     
     for k = 1:niter
         [J,R] = matrixAssembly(Xt,Xk);
@@ -74,6 +75,7 @@ function Xk = newtonIter(Xt)
         [J,R,X] = matrixPartition(J,R,Xk);
         dX.N = -J.NN\R.N;
         Xk = [X.BC; X.N+dX.N];
+        Xk = unPartition(Xk);
     end
 end
 
@@ -175,10 +177,10 @@ function j = elementJacobian(xv,xs)
 end
 
 function [J,R,X] = matrixPartition(J0,R0,X0)
-    global N
+    global N BC eN eD
     
     BC = [1 0; N.vnode 1];
-    eN = 1:N.node;
+    eN = [1:N.node]';
     eD = BC(:,1);
     for i = 1:numel(eD)
         eN(eN==eD(i)) = [];
@@ -193,15 +195,24 @@ function [J,R,X] = matrixPartition(J0,R0,X0)
     R.D = R0(eD);
     R.N = R0(eN);
     
-    X.BCp = zeros(size(BC,1),1);
+    X.BC = zeros(size(BC,1),1);
     for i = 1:size(BC,1)
-        X.BCp(i) = BC(i,2);
+        X.BC(i) = BC(i,2);
+    end
+end
+
+function X = unPartition(X0)
+    global eN eD
+    e = [eD;eN];
+    X = zeros(numel(e),1);
+    for i = 1:numel(e)
+        X(e(i)) = X0(i);
     end
 end
 
 function v = get_vbc(X)
     vt = get_vel();
-    v = X.BCp*vt;
+    v = X.BC*vt;
 end
 
 function v = get_vel()
