@@ -20,6 +20,7 @@ function X = linearElasticity()
         end
     end
     X = [X0 cell2mat(X)];
+    X = X(1:N.vnode,:);
 end
 
 function setupData()
@@ -53,7 +54,7 @@ function getMesh()
 end
 
 function Xk = newtonIter(Xt)
-    global NewtonPar
+    global NewtonPar N
     
     niter = NewtonPar.iter;
     ntol = NewtonPar.NormTol;
@@ -64,25 +65,28 @@ function Xk = newtonIter(Xt)
     
     X.BC = get_vbc(X);
     dX.D = -X.D+X.BC;
-    dX.N = J.NN\(-R.N-J.ND*dX.D);
+    dX.N = J.NN\(-R.N+J.ND*dX.D);
     Xk = [X.BC; X.N+dX.N];
-    Xk = unPartition(Xk);
-    
-
+    [J,R,Xk] = unPartition(J,R,Xk);
+    if norm(R) < ntol
+        return
+    end
     
     for k = 1:niter
         [J,R] = matrixAssembly(Xt,Xk);
-        if norm(R) < ntol
-            break
-        end
         [J,R,X] = matrixPartition(J,R,Xk);
         
         X.BC = get_vbc(X);
         dX.N = -J.NN\R.N;
-        Xk = [X.BC; X.N+dX.N];
-        Xk = unPartition(Xk);
-    end
 
+        Xk = [X.BC; X.N+dX.N];
+        
+        [J,R,Xk] = unPartition(J,R,Xk);
+        
+        if norm(R) < ntol
+            break
+        end
+    end
 end
 
 function [J,R] = matrixAssembly(Xt,Xn)
@@ -207,11 +211,17 @@ function [J,R,X] = matrixPartition(J0,R0,X0)
     end
 end
 
-function X = unPartition(X0)
+function [J,R,X] = unPartition(J0,R0,X0)
     global eN eD
     e = [eD;eN];
+    J0 = [J0.DD J0.DN; J0.ND J0.NN];
+    R0 = [R0.D; R0.N];
+    J = zeros(numel(e),1);
+    R = zeros(numel(e),1);
     X = zeros(numel(e),1);
     for i = 1:numel(e)
+        J(e(i)) = J0(i);
+        R(e(i)) = R0(i);
         X(e(i)) = X0(i);
     end
 end
