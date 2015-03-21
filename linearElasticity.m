@@ -11,7 +11,7 @@ function X = linearElasticity()
     X0 = zeros(N.node,1);
     
     Xt = X0;
-    for n = 1:t.steps
+    for n = 2:t.steps
         t.iter = n;
         t.curr = t.curr+t.dt;
         Xt = newtonIter(Xt);
@@ -20,7 +20,6 @@ function X = linearElasticity()
         end
     end
     X = [X0 cell2mat(X)];
-    X = X(1:N.vnode,:);
 end
 
 function setupData()
@@ -35,7 +34,7 @@ function setupData()
     
     %Newton's method parameters
     NewtonPar.NormTol = 1E-8;
-    NewtonPar.iter = 500;
+    NewtonPar.iter = 200;
     
     %Time integration parameters
     TimeIntPar.alpha = 1;
@@ -54,38 +53,36 @@ function getMesh()
 end
 
 function Xk = newtonIter(Xt)
-    global NewtonPar N
+    global NewtonPar
     
     niter = NewtonPar.iter;
     ntol = NewtonPar.NormTol;
     
-    X0 = Xt;
-    [J,R] = matrixAssembly(Xt,X0);
-    [J,R,X] = matrixPartition(J,R,X0);
+    Xk = Xt;
+    [J,R] = matrixAssembly(Xt,Xk);
+    [J,R,X] = matrixPartition(J,R,Xk);
     
     X.BC = get_vbc(X);
     dX.D = -X.D+X.BC;
-    dX.N = J.NN\(-R.N+J.ND*dX.D);
-    Xk = [X.BC; X.N+dX.N];
-    [J,R,Xk] = unPartition(J,R,Xk);
-    if norm(R) < ntol
-        return
-    end
+    R.D = -dX.D;
+    dX.N = J.NN\(-R.N-J.ND*dX.D);
+    Xk = [X.D+dX.D; X.N+dX.N];
+    Xk = unPartition(Xk);
     
     for k = 1:niter
+        fprintf('Newton iteration %d\n',k);
         [J,R] = matrixAssembly(Xt,Xk);
         [J,R,X] = matrixPartition(J,R,Xk);
         
-        X.BC = get_vbc(X);
-        dX.N = -J.NN\R.N;
-
-        Xk = [X.BC; X.N+dX.N];
-        
-        [J,R,Xk] = unPartition(J,R,Xk);
-        
-        if norm(R) < ntol
+        if norm(R.N) < ntol
             break
         end
+        
+        dX.N = -J.NN\R.N;
+        
+        Xk = [X.D; X.N+dX.N];
+        
+        Xk = unPartition(Xk);
     end
 end
 
@@ -112,7 +109,7 @@ function [J,R] = matrixAssembly(Xt,Xn)
         R.v(L) = R.v(L)+r.v;
         R.s(e) = R.s(e)+r.s;
         
-        j = elementJacobian(xv,xs);
+        j = elementJacobian();
         J.vv(L,L) = J.vv(L,L)+j.vv;
         J.vs(L,e) = J.vs(L,e)+j.vs;
         J.sv(e,L) = J.sv(e,L)+j.sv;
@@ -139,8 +136,8 @@ function elementMatrix(e)
     Bv = (1/h)*[-1 1];
     Ns = [1];
     fvv = @(x) rho*Nv(x)'*Nv(x);
-    fvs = @(x) Bv'*Ns;
-    fsv = @(x) -E*Ns'*Bv;
+    fvs = @(x) -Bv'*Ns;
+    fsv = @(x) E*Ns'*Bv;
     fss = @(x) Ns'*Ns;
     
     m.vv=0; m.ss=0;
@@ -163,27 +160,29 @@ function r = elementResidual(xv,xs)
     global TimeIntPar t
     global m k
     
-    xv = num2cell(xv,1);
-    xs = num2cell(xs,1);
+    xv1 = xv(:,2);
+    xs1 = xs(:,2);
+    xv0 = xv(:,1);
+    xs0 = xs(:,1);
+    
     a = TimeIntPar.alpha;
     dt = t.dt;
-    n = 1;
     
-    r.v = (m.vv/dt)*(xv{n+1}-xv{n})-(1-a)*k.vs*xs{n}-a*k.vs*xs{n+1};
-    r.s = (m.ss/dt)*(xs{n+1}-xs{n})-(1-a)*k.sv*xv{n}-a*k.sv*xv{n+1};
+    r.v = (m.vv/dt)*(xv1-xv0)-(1-a)*k.vs*xs0-a*k.vs*xs1;
+    r.s = (m.ss/dt)*(xs1-xs0)-(1-a)*k.sv*xv0-a*k.sv*xv1;
 end
 
-function j = elementJacobian(xv,xs)
+function j = elementJacobian()
     global TimeIntPar t
     global m k
     
     a = TimeIntPar.alpha;
     dt = t.dt;
     
-    j.vv = (1/dt)*m.vv;
+    j.vv = m.vv/dt;
     j.vs = -a*k.vs;
     j.sv = -a*k.sv;
-    j.ss = (1/dt)*m.ss;
+    j.ss = m.ss/dt;
 end
 
 function [J,R,X] = matrixPartition(J0,R0,X0)
@@ -198,12 +197,12 @@ function [J,R,X] = matrixPartition(J0,R0,X0)
     
     X.D = X0(eD);
     X.N = X0(eN);
-    J.DD = J0(eD,eD);
-    J.DN = J0(eD,eN);
+    
     J.ND = J0(eN,eD);
     J.NN = J0(eN,eN);
-    R.D = R0(eD);
     R.N = R0(eN);
+    R.D = R0(eD);
+    
     
     X.BCp = zeros(size(BC,1),1);
     for i = 1:size(BC,1)
@@ -211,17 +210,12 @@ function [J,R,X] = matrixPartition(J0,R0,X0)
     end
 end
 
-function [J,R,X] = unPartition(J0,R0,X0)
+function X = unPartition(X0)
     global eN eD
     e = [eD;eN];
-    J0 = [J0.DD J0.DN; J0.ND J0.NN];
-    R0 = [R0.D; R0.N];
-    J = zeros(numel(e),1);
-    R = zeros(numel(e),1);
+
     X = zeros(numel(e),1);
     for i = 1:numel(e)
-        J(e(i)) = J0(i);
-        R(e(i)) = R0(i);
         X(e(i)) = X0(i);
     end
 end
