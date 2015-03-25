@@ -67,26 +67,17 @@ function Xk = newtonIter(Xt)
     velBC = get_vbc(X);
     dX.D = -X.D+velBC;
     R.D = -dX.D;
-    dX.N = J.NN\(-R.N-J.ND*dX.D);
+    dX.N = -J.NN\(R.N+J.ND*dX.D);
     Xk = [X.D+dX.D; X.N+dX.N];
     Xk = unPartition(Xk);
-    BLA=zeros(100);
     
     for k = 1:niter
         fprintf('Newton iteration %d\n',k);
         [J,R] = matrixAssembly(Xt,Xk);
         [J,R,X] = applyBC(J,R,Xk);
-        
-        %BLA(k)=norm(R.N);
-        %figure(1)
-        %plot(R.N);
-        %pause(0.2)
-        
-		RES = [R.D;R.N];
-		RES(1:N.vnode) = RES(1:N.vnode)/1E19;
-		RES(N.vnode+1:end) = RES(N.vnode+1:end)/250E9;
-        norm(RES)
-        if norm(RES) < ntol
+
+        norm(R.N)
+        if norm(R.N) < ntol
             break
         end
         if k==20,
@@ -282,6 +273,11 @@ function [J,R,X] = applyBC(J0,R0,X0)
     for i = 1:nBC
         eN(eN==eD(i)) = [];
     end    
+    
+    R0(1:N.vnode) = R0(1:N.vnode)/1E4;
+    R0(N.vnode+1:end) = R0(N.vnode+1:end)/250E9;
+    J0(1:N.vnode,:) = J0(1:N.vnode,:)/1E4;
+    J0(N.vnode+1:end,:)=J0(N.vnode+1:end,:)/250E9;
     
     X.D = X0(eD);
     X.N = X0(eN);
