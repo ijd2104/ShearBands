@@ -1,8 +1,6 @@
 function x = shearBands()
 %SHEARBANDS Solves linear elasticity
-
     global t N
-    
     setupData();
     getMesh();
     

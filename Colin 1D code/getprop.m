@@ -25,8 +25,8 @@ switch par.material_model
         prop(12) = 5e-5;                % imperfection radius
         prop(13)=  1.e-3;               % eps0dot : reference strain rate
         prop(14)=  70.0d0;              % m: rate senstivity parameter
-        prop(15)=  2000.e6;             % sig0 : yield stress
-        prop(16)=  2000.e6/200.e9;      % eps0 : yield strain
+        prop(15)=  realmax;%2000.e6;             % sig0 : yield stress
+        prop(16)=  prop(15)/prop(1);%2000.e6/200.e9;      % eps0 : yield strain
         prop(17)=  0.010d0;             % n : strain hardening exponent
         prop(18)=  293.0d0;             % t0 : reference temperature
         prop(19)=  0.80d0;              % del : thermal softening parameter

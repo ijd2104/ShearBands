@@ -1,11 +1,21 @@
 function Shearbands_Coupled()
 globvarssb;
-vo = 10;
+vo = 1;
 tsteps = 2000;
-totaltime = 2/5048;
+totaltime = 2E-4;%2.5*1.0e-6;
 timeramp = totaltime/10;%1.0e-6;
 dt = totaltime/tsteps;
 
+%Data to save, 1 to save, 0 to not
+Save_V = 1;
+Save_d = 1;
+Save_timeandres = 1;
+Save_T = 1;
+Save_stress = 1;
+Save_plastic_strain = 1;
+Save_mesh = 1;
+Save_options = 1;
+Save_residuals = 0;
 
 %input options
        
@@ -154,7 +164,7 @@ for e = 1:nel
 end
 X0 = vertcat(V,stress,T,plastic_strain);
 d0 = d;
-tol = 1e-5;
+tol = 1e-13;
 time = 0;
 % save init_vec_mat Mv Kv Msig Ksig MT KT Mgamp fv0 fsig0 fT0 fgamp0;
 % return
@@ -193,7 +203,7 @@ while time < totaltime
     %%%%%%%%%%%%%%%%%%%%%
     while normres > tol 
         
-        Newton_count = Newton_count + 1
+        Newton_count = Newton_count + 1;
         if Newton_count > 10
             dt = dt/2;
             X = X0;
@@ -248,7 +258,7 @@ while time < totaltime
     
     figure(1)
     plot(V)
-    axis([0 101 -8E5 8E5])
+    axis([0 100 -10 10])
     pause(.001)
             
     stress = X(nnode+1:nnode+nel);

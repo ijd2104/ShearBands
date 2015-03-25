@@ -75,7 +75,7 @@ function Xk = newtonIter(Xt)
     for k = 1:niter
         fprintf('Newton iteration %d\n',k);
         [J,R] = matrixAssembly(Xt,Xk);
-        [J,R,X] = applyBC(J,R,Xk);
+        [J,R,X] = matrixPartition(J,R,Xk);
         
         %BLA(k)=norm(R.N);
         %figure(1)
@@ -83,7 +83,7 @@ function Xk = newtonIter(Xt)
         %pause(0.2)
         
 		RES = [R.D;R.N];
-		RES(1:N.vnode) = RES(1:N.vnode)/1E19;
+		RES(1:N.vnode) = RES(1:N.vnode)/1E20;
 		RES(N.vnode+1:end) = RES(N.vnode+1:end)/250E9;
         norm(RES)
         if norm(RES) < ntol
@@ -101,9 +101,7 @@ function Xk = newtonIter(Xt)
     end
         figure(1)
         plot(Xk(1:101))
-        axis([0 101 -8E5 8E5])
-        xlabel('Nodes')
-        ylabel('Velocity m/s')
+        axis([0 100 -1E7 1E7])
         pause(.001)
 end
 
@@ -185,7 +183,7 @@ function elementMatrix(e)
     global m k
     
     E = 200E9; %Pa
-    rho = 7830; %kg/m^3
+    rho = 7850; %kg/m^3
     
     L = N.conn(e,:);
     ue = u(L);
