@@ -27,7 +27,7 @@ function setupData()
     
     %Time data
     t.total = 2/5048; %Time for wave to travel 1m, 1/5000
-    t.steps = 2000;
+    t.steps = 1000;
     t.dt = t.total/t.steps;
     t.ramp = t.total/10;
     t.curr = 0;
@@ -53,7 +53,7 @@ function getMesh()
 end
 
 function Xk = newtonIter(Xt)
-    global NewtonPar N
+    global NewtonPar
     
     niter = NewtonPar.iter;
     ntol = NewtonPar.NormTol;
@@ -63,7 +63,6 @@ function Xk = newtonIter(Xt)
     %[J,R,X] = matrixPartition(J,R,Xk);
     [J,R,X] = applyBC(J,R,Xk);
     
-    
     velBC = get_vbc(X);
     dX.D = -X.D+velBC;
     R.D = -dX.D;
@@ -72,11 +71,11 @@ function Xk = newtonIter(Xt)
     Xk = unPartition(Xk);
     
     for k = 1:niter
-        fprintf('Newton iteration %d\n',k);
+        %fprintf('Newton iteration %d\n',k);
         [J,R] = matrixAssembly(Xt,Xk);
         [J,R,X] = applyBC(J,R,Xk);
 
-        norm(R.N)
+        %norm(R.N)
         if norm(R.N) < ntol
             break
         end
@@ -96,45 +95,6 @@ function Xk = newtonIter(Xt)
         xlabel('Nodes')
         ylabel('Velocity m/s')
         pause(.001)
-end
-
-function Xk = newtonItertest(Xt)
-    global NewtonPar
-    
-    niter = NewtonPar.iter;
-    ntol = NewtonPar.NormTol;
-    
-    Xk = Xt;
-    
-    for k = 1:niter
-        fprintf('Newton iteration %d\n',k);
-            
-        [J,R] = matrixAssembly(Xt,Xk);
-        [J,R,X] = applyBC(J,R,Xk);
-        
-        if k==1
-            X.BC = get_vbc(X);
-            dX.D = -X.D+X.BC;
-            R.D = -dX.D;
-        else
-            R.D = 0.0.*X.D;
-        end
-        
-        RR=[R.D;R.N];
-        JJ=[J.DD,J.DN;J.ND,J.NN];
-        
-        if norm(RR) < ntol
-            break
-        end
-        
-        dX = -JJ\RR;
-        
-        Xk = [X.D; X.N]+dX;
-        
-        Xk = unPartition(Xk);
-
-
-    end
 end
 
 function [J,R] = matrixAssembly(Xt,Xn)
@@ -236,31 +196,6 @@ function j = elementJacobian()
     j.vs = -a*k.vs;
     j.sv = -a*k.sv;
     j.ss = m.ss/dt;
-end
-
-function [J,R,X] = matrixPartition(J0,R0,X0)
-    global N BC eN eD
-    
-    BC = [1 0; N.vnode 1];
-    eN = [1:N.node]';
-    eD = BC(:,1);
-    for i = 1:numel(eD)
-        eN(eN==eD(i)) = [];
-    end
-    
-    X.D = X0(eD);
-    X.N = X0(eN);
-    
-    J.ND = J0(eN,eD);
-    J.NN = J0(eN,eN);
-    R.N = R0(eN);
-    R.D = R0(eD);
-    
-    
-    X.BCp = zeros(size(BC,1),1);
-    for i = 1:size(BC,1)
-        X.BCp(i) = BC(i,2);
-    end
 end
 
 function [J,R,X] = applyBC(J0,R0,X0)
