@@ -38,6 +38,5 @@ for i = 1:ngp
     
     Ggampsige = Ggampsige + wgp(i)*gsig*J;
     GgampTe = GgampTe + wgp(i)*gT*N*J;
-    Ggampgampe = Ggampgampe + wgp(i)*m*nn/(eps0+plastic_strain)*g*J;
-    
+    Ggampgampe = Ggampgampe + wgp(i)*m*nn/(eps0+plastic_strain)*g*J;  
 end
