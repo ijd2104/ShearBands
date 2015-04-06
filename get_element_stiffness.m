@@ -61,6 +61,12 @@ function [r,m,k] = get_element_stiffness( xe,flg )
         k.gT = k.gT+W(i)*dgdT*N*J;
         k.gg = k.gg+W(i)*dgdp*J;
     end
+    
+    %Compute residual
+    r.v = m.v*vdot-k.vs*s;
+    r.T = m.s*sdot-(k.sv*v+k.ss*s+k.sT*T+k.sg*p);
+    r.s = m.T*Tdot-(k.Ts*s+k.TT*T+k.Tg*p);
+    r.g = m.g*pdot-(k.gs*s+k.gT*T+k.gg*p);
 end
 
 function [B,N] = get_shape_functions(xi,h)
