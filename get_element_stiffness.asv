@@ -1,31 +1,31 @@
 function [r,m,k] = get_element_stiffness( xe,flg )
-%GET_ELEMENT_STIFFNESS Computes the terms for FEM matrices of an 
+%GET_ELEMENT_STIFFNESS Computes the terms for FEM matrices of an element
 %   Detailed explanation goes here
 
 % Initialize matrices
     %Mass terms
-    mv = zeros(2,2);
-    mT = zeros(2,2);
-    ms = 0;
-    mg = 0;
+    m.v = zeros(2,2);
+    m.T = zeros(2,2);
+    m.s = 0;
+    m.g = 0;
     
     %Linear terms
-    kvs = zeros(2,1);
-    ksv = zeros(1,2);
-    kTT = zeros(2,2);
+    k.vs = zeros(2,1);
+    k.sv = zeros(1,2);
+    k.TT = zeros(2,2);
     
     %Non linear terms
-    Gss = 0;
-    GsT = zeros(1,2);
-    Gsg = 0;
+    k.ss = 0;
+    k.sT = zeros(1,2);
+    k.sg = 0;
     
-    GTs = zeros(2,1);
-    GTT = zeros(2,2);
-    GTg = zeros(2,1);
+    k.Ts = zeros(2,1);
+    k.TT = zeros(2,2);
+    k.Tg = zeros(2,1);
     
-    Ggs = 0;
-    GgT = zeros(1,2);
-    Ggg = 0;
+    k.gs = 0;
+    k.gT = zeros(1,2);
+    k.gg = 0;
     
     %Gauss integration
     ngp = 2;
@@ -34,30 +34,30 @@ function [r,m,k] = get_element_stiffness( xe,flg )
         [N,B] = get_shape_functions(xi(i),h);
         
         %Mass matrix
-        mv = mv+W(i)*rho*(N'*N)*J;
-        mT = mT+W(i)*rho*cp*(N'*N)*J;
-        ms = ms+W(i)*J;
-        mg = mg+W(i)*J;
+        m.v = m.v+W(i)*rho*(N'*N)*J;
+        m.T = m.T+W(i)*rho*cp*(N'*N)*J;
+        m.s = m.s+W(i)*J;
+        m.g = m.g+W(i)*J;
         
         %Linear Stiffness matrix
-        kvs = kvs-W(i)*B'*J;
-        ksv = ksv+W(i)*E*B*J;
-        kTT = kTT-W(i)*lambda*(B'*B)*J;
+        k.vs = k.vs-W(i)*B'*J;
+        k.sv = k.sv+W(i)*E*B*J;
+        k.TT = k.TT-W(i)*lambda*(B'*B)*J;
         
         %Non linear stiffness matrix
-        [dgdp,dgds,dgdT] = get_plastic_strain_rate();
-        Gss = Gss-W(i)*E*dgds*J;
-        GsT = GsT-W(i)*E*dgdT*N*J;
-        Gsg = Gsg-W(i)*E*dgdp*J;
+        [g,dgdp,dgds,dgdT] = get_plastic_strain_rate();
+        k.ss = k.ss-W(i)*E*dgds*J;
+        k.sT = k.sT-W(i)*E*dgdT*N*J;
+        k.sg = k.sg-W(i)*E*dgdp*J;
         
         [F1,F2] = get_F(g,dgds,s);
-        GTs = GTs+W(i)*N'*F1*s*J;
-        GTT = GTT+W(i)*(N'*N)*F2*s*dgdT*J;
-        GTg = GTg+W(i)*N'*F2*s*dgdp*J;
+        k.Ts = k.Ts+W(i)*N'*F1*s*J;
+        k.TT = k.TT+W(i)*(N'*N)*F2*s*dgdT*J;
+        k.Tg = k.Tg+W(i)*N'*F2*s*dgdp*J;
         
-        Ggs = Ggs+W(i)*dgds*J;
-        GgT = GgT+W(i)*dgdT*N*J;
-        Ggg = Ggg+W(i)*dgdp*J;
+        k.gs = k.gs+W(i)*dgds*J;
+        k.gT = k.gT+W(i)*dgdT*N*J;
+        k.gg = k.gg+W(i)*dgdp*J;
     end
 end
 
@@ -67,7 +67,7 @@ function [B,N] = get_shape_functions(xi,h)
     B = (1/h)*[-1, 1];
 end
 
-function [dgdg,dgds,dgdT] = get_plastic_strain_rate(model)
+function [g,dgdp,dgds,dgdT] = get_plastic_strain_rate()
     %Input variables
     %eps0dot            reference strain rate
     %sig0               yield stress
@@ -75,23 +75,18 @@ function [dgdg,dgds,dgdT] = get_plastic_strain_rate(model)
     %n                  strain hardening exponent
     %T0                 reference temperature
     %m                  thermal softening exponent
+        
+    %Johnson-Cook Model
+    x_psi = (xe(1)*(1-xi)+xe(2)*(1+xi))/2;
+    T_psi = (Te(1)*(1-xi)+Te(2)*(1+xi))/2;
     
-    switch model
-        case 1
-            %Litonski-Batra Model
-        case 2
-            %Power Law Model
-        case 3       
-            %Johnson-Cook Model
-            x_psi = (xe(1)*(1-psi)+xe(2)*(1+psi))/2;
-            T_psi = (Te(1)*(1-psi)+Te(2)*(1+psi))/2;
+    P = 1-((T-To)/(Tm-To))^m;
+    Q = A+B*p^N;
+    g = pdotr*e^((s/(P*Q)-1)/c);
+    dgds = g/(c*P*Q);
+    dgdp = -B*N*p^(N-1)*s/(c*P*Q^2);
+    dgdT = 
 
-            g = 
-        case 4
-            %Bodner-Parton Model
-        otherwise
-            error('Incorrect constitutive model')
-    end
 end
 
 function [F1,F2] = get_F(g,dgds,s)
