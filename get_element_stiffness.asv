@@ -1,5 +1,5 @@
 function [r,m,k] = get_element_stiffness( xe,flg )
-%GET_ELEMENT_STIFFNESS Computes the terms for FEM matrices of an element
+%GET_ELEMENT_STIFFNESS Computes the terms for FEM matrices of an 
 %   Detailed explanation goes here
 
 % Initialize matrices
@@ -83,8 +83,8 @@ function [dgdg,dgds,dgdT] = get_plastic_strain_rate(model)
             %Power Law Model
         case 3       
             %Johnson-Cook Model
-            x_psi = (xe(1)*(1-xi)+xe(2)*(1+xi))/2;
-            T_psi = (Te(1)*(1-xi)+Te(2)*(1+xi))/2;
+            x_psi = (xe(1)*(1-psi)+xe(2)*(1+psi))/2;
+            T_psi = (Te(1)*(1-psi)+Te(2)*(1+psi))/2;
 
             g = 
         case 4
