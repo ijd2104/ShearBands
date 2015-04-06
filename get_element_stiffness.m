@@ -3,11 +3,10 @@ function [r,m,k] = get_element_stiffness( xe,flg )
 %   Detailed explanation goes here
 
 %% Linear terms
-    B = (1/h)*[-1, 1];
-    B_T = B';
-    
-    m_CG = zeros(2,2);
-    m_DG = 0;
+    mv = zeros(2,2);
+    mT = zeros(2,2);
+    ms = 0;
+    mg = 0;
     kvs = zeros(2,1);
     ksv = zeros(1,2);
     kTT = zeros(2,2); 
@@ -15,27 +14,23 @@ function [r,m,k] = get_element_stiffness( xe,flg )
     ngp = 2; %number of Gauss points
     [W,xi] = gaussQuad(ngp);
     for i = 1:ngp
-        N = (1/2)*[1-xi(i) 1+xi(i)];
-        N_T = N';
+        [N,B] = get_shape_functions(xi(i),h);
         
+        %Mass matrix
+        mv = mv+W(i)*rho*(N'*N)*J;
+        mT = mT+W(i)*rho*cp*(N'*N)*J;
+        ms = ms+W(i)*J;
+        mg = mg+W(i)*J;
         
-        m_CG = m_CG+W(i)*(N_T*N);
-        m_DG = m_DG+W(i);
+        %Linear Stiffness matrix
+        kvs = kvs-W(i)*B'*J;
+        ksv = ksv+W(i)*E*B*J;
+        kTT = kTT-W(i)*lambda*(B'*B)*J;
         
-        kvs = kvs+W(i)*B_T;
-        ksv = ksv+W(i)*V;
-        kTT = kTT+W(i)*(B_T*B);
-        
-        
+        %Non linear stiffness matrix
+        [dgdg,dgds,dgdT] = get_plastic_strain_rate();
     end
-    mv = rho*m_CG*J;
-    mT = rho*c*m_CG*J;
-    ms = m_DG*J;
-    mg = m_DG*J;
-    kvs = -kvs*J;
-    ksv = E*ksv*J;
-    kTT = -lambda*kTT*J;
-    
+
 %% Non linear terms
     Gss = 0;
     GsT = zeros(1,2);
@@ -51,30 +46,61 @@ function [r,m,k] = get_element_stiffness( xe,flg )
     
     ngp = 2; %number of Gauss points
     [W,xi] = gaussQuad(ngp);
-    B = (1/h)*[-1, 1];
-    B_T = B';
     for i = 1:ngp
         N = (1/2)*[1-xi(i) 1+xi(i)];
         N_T = N';
         
-        gg = get_gg
-        gs = get_gs
-        gT = get_gT
+        g = get_g;
+        dgdp = get_dgdp(g);
+        dgds = get_dgds(g);
+        dgdT = get_dgdT(g);
         
-        Gss = Gss+W(i)*gs;
-        GsT = GsT+W(i)*gT*N;
-        Gsg = Gsg+W(i)*gg;
+        Gss = Gss-W(i)*E*dgds*J;
+        GsT = GsT-W(i)*E*dgdT*N*J;
+        Gsg = Gsg-W(i)*E*dgdp*J;
         
-        GTs = GTs+W(i)*N_T;
-        GTT = GTT+W(i)*(N_T*N)*gT;
-        GTg = GTg+W(i)*N_T*gg;
+        GTs = GTs+W(i)*N';
+        GTT = GTT+W(i)*(N'*N)*dgdT;
+        GTg = GTg+W(i)*N'*dgdp;
         
-        Ggs = Ggs+W(i)*gs;
-        GgT = GgT+W(i)*gT*N;
-        Ggg = Ggg+W(i)*gg;
+        Ggs = Ggs+W(i)*dgds*J;
+        GgT = GgT+W(i)*dgdT*N*J;
+        Ggg = Ggg+W(i)*dgdp*J;
     end
 
 %% Other
     
 end
 
+function [B,N] = get_shape_functions(xi,h)
+    %For velocity and temperature
+    N = (1/2)*[1-xi 1+xi];
+    B = (1/h)*[-1, 1];
+end
+
+function [dgdg,dgds,dgdT] = get_plastic_strain_rate(model)
+    %Input variables
+    %eps0dot            reference strain rate
+    %sig0               yield stress
+    %eps0               yield strain
+    %n                  strain hardening exponent
+    %T0                 reference temperature
+    %m                  thermal softening exponent
+    
+    switch model
+        case 1
+            %Litonski-Batra Model
+        case 2
+            %Power Law Model
+        case 3       
+            %Johnson-Cook Model
+            x_psi = (xe(1)*(1-psi)+xe(2)*(1+psi))/2;
+            T_psi = (Te(1)*(1-psi)+Te(2)*(1+psi))/2;
+
+            g = 
+        case 4
+            %Bodner-Parton Model
+        otherwise
+            error('Incorrect constitutive model')
+    end
+end
