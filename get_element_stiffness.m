@@ -1,4 +1,4 @@
-function [r,m,k] = get_element_stiffness( xe,flg )
+function [r,m,k] = get_element_stiffness(X0,X)
 %GET_ELEMENT_STIFFNESS Computes the terms for FEM matrices of an element
 %   Detailed explanation goes here
 
@@ -20,7 +20,7 @@ function [r,m,k] = get_element_stiffness( xe,flg )
     k.sg = 0;
     
     k.Ts = zeros(2,1);
-    k.TT = zeros(2,2);
+    %k.TT = zeros(2,2);
     k.Tg = zeros(2,1);
     
     k.gs = 0;
@@ -62,6 +62,7 @@ function [r,m,k] = get_element_stiffness( xe,flg )
         k.gg = k.gg+W(i)*dgdp*J;
     end
     
+    a = 1; %backward euler
     %Compute residual
     r.v = m.v*vdot-(1-a)*(k.vs*s0                        )-a*(k.vs*s                     );
     r.T = m.s*sdot-(1-a)*(k.sv*v0+k.ss*s0+k.sT*T0+k.sg*p0)-a*(k.sv*v+k.ss*s+k.sT*T+k.sg*p);
