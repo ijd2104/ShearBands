@@ -2,7 +2,7 @@ function [r,m,k] = get_element_stiffness( xe,flg )
 %GET_ELEMENT_STIFFNESS Computes the terms for FEM matrices of an element
 %   Detailed explanation goes here
 
-% Initialize matrices
+    %Initialize matrices
     %Mass terms
     m.v = zeros(2,2);
     m.T = zeros(2,2);
@@ -30,8 +30,10 @@ function [r,m,k] = get_element_stiffness( xe,flg )
     %Gauss integration
     ngp = 2;
     [W,xi] = gaussQuad(ngp);
+    get_properties      %retrieve material properties
     for i = 1:ngp
         [N,B] = get_shape_functions(xi(i),h);
+        T_xi = dot(T,N);
         
         %Mass matrix
         m.v = m.v+W(i)*rho*(N'*N)*J;
@@ -45,12 +47,12 @@ function [r,m,k] = get_element_stiffness( xe,flg )
         k.TT = k.TT-W(i)*lambda*(B'*B)*J;
         
         %Non linear stiffness matrix
-        [g,dgdp,dgds,dgdT] = get_plastic_strain_rate();
+        [g,dgdp,dgds,dgdT] = get_plastic_strain_rate(s,T_xi,p);
         k.ss = k.ss-W(i)*E*dgds*J;
         k.sT = k.sT-W(i)*E*dgdT*N*J;
         k.sg = k.sg-W(i)*E*dgdp*J;
         
-        [F1,F2] = get_F(g,dgds,s);
+        [F1,F2] = get_F(s,g,dgds);
         k.Ts = k.Ts+W(i)*N'*F1*s*J;
         k.TT = k.TT+W(i)*(N'*N)*F2*s*dgdT*J;
         k.Tg = k.Tg+W(i)*N'*F2*s*dgdp*J;
@@ -67,31 +69,24 @@ function [B,N] = get_shape_functions(xi,h)
     B = (1/h)*[-1, 1];
 end
 
-function [g,dgdp,dgds,dgdT] = get_plastic_strain_rate()
-    %Input variables
-    %eps0dot            reference strain rate
-    %sig0               yield stress
-    %eps0               yield strain
-    %n                  strain hardening exponent
-    %T0                 reference temperature
-    %m                  thermal softening exponent
-        
+function [g,dgdp,dgds,dgdT] = get_plastic_strain_rate(s,T,p)        
     %Johnson-Cook Model
-    x_psi = (xe(1)*(1-xi)+xe(2)*(1+xi))/2;
-    T_psi = (Te(1)*(1-xi)+Te(2)*(1+xi))/2;
+    get_parameters          %get parameters for the constitutive model
     
     P = 1-((T-To)/(Tm-To))^m;
     Q = A+B*p^N;
+    
     g = pdotr*e^((s/(P*Q)-1)/c);
     dgds = g/(c*P*Q);
     dgdp = -dgds*B*N*p^(N-1)*s/Q;
     dgdT = dgds*m*s*((T-To)/(Tm-To))^(m-1)/(P*(Tm-To));
 end
 
-function [F1,F2] = get_F(g,dgds,s)
+function [F1,F2] = get_F(s,g,dgds)
     %For constant Taylor Quinney Coefficient
     n = 1;
     dndg = 0;
+    get_parameters          %get parameters for the constitutive model
     
     F1 = chi*(dndg*dgds*g+n*g/s+n*dgds);
     F2 = chi*(dndg*g+n);
