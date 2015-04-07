@@ -42,7 +42,8 @@ function [r,m,k] = get_element_stiffness(x0,x,h)
     rho = matProp.rho;
     cp = matProp.cp;
     lambda = matProp.lambda;
-    E = matProp.E;
+    %E = matProp.E;
+    G = matProp.G;
     
     %Gauss integration
     ngp = 2;
@@ -60,14 +61,14 @@ function [r,m,k] = get_element_stiffness(x0,x,h)
         
         %Linear Stiffness matrix
         k.vs = k.vs-W(i)*B'*J;
-        k.sv = k.sv+W(i)*E*B*J;
+        k.sv = k.sv+W(i)*G*B*J;
         k.TT = k.TT-W(i)*lambda*(B'*B)*J;
         
         %Non linear stiffness matrix
         [g,dgdp,dgds,dgdT] = get_plastic_strain_rate(s,T_xi,p);
-        k.ss = k.ss-W(i)*E*dgds*J;
-        k.sT = k.sT-W(i)*E*dgdT*N*J;
-        k.sg = k.sg-W(i)*E*dgdp*J;
+        k.ss = k.ss-W(i)*G*dgds*J;
+        k.sT = k.sT-W(i)*G*dgdT*N*J;
+        k.sg = k.sg-W(i)*G*dgdp*J;
         
         [F1,F2] = get_F(s,g,dgds);
         k.Ts = k.Ts+W(i)*N'*F1*s*J;
