@@ -1,4 +1,4 @@
-function X = linearElasticity()
+function X = coupled_shear_bands()
 %LINEARELASTICITY Solves linear elasticity problem using mixed FEM
 %   Saves velocity and displacement at intervals
     global t N
@@ -23,7 +23,7 @@ function X = linearElasticity()
 end
 
 function setupData()
-    global t TimeIntPar NewtonPar
+    global t TimeIntPar NewtonPar matProp modelPar
     
     %Time data
     t.total = 2/5048; %Time for wave to travel 1m, 1/5000
@@ -38,6 +38,25 @@ function setupData()
     
     %Time integration parameters
     TimeIntPar.alpha = 1;
+    
+    %Material properties for 4340 Steel
+    matProp.rho = 7830;             %kg/m^3 mass density
+    matProp.cp = 477;               %J/kgK specific heat
+    matProp.lambda = 38;            %W/mK thermal conductivity
+    matProp.E = 200E9;              %Pa Elastic modulus
+    matProp.mu = 0.29;              % Poisson ratio
+    matProp.G = 77.5E9;             %Pa shear modulus
+    matProp.chi = 0.9;              % Taylor-Quinney coefficient
+    
+    %Johnson Cook Parameters for 4340 Steel
+    modelPar.A = 457.3E6;            %Pa yield shear stress
+    modelPar.B = 294.4E6;            %Pa shear stress hardening parameter
+    modelPar.N = 0.26;               % strain hardening parameter
+    modelPar.To = 298;               %K reference temperature
+    modelPar.Tm = 1793;              %K melting temperature
+    modelPar.m = 1.03;               % thermal softening exponent
+    modelPar.c = 0.014;              % strain-rate hardening parameter
+    modelPar.pdotr = 1.0;            %1/s reference strain rate
 end
 
 function getMesh()
@@ -98,104 +117,115 @@ function Xk = newtonIter(Xt)
 end
 
 function [J,R] = matrixAssembly(Xt,Xn)
-    global N
+    global N u
     
     %Initialize matrices
     R.v = zeros(N.vnode,1);
     R.s = zeros(N.elem,1);
+    R.T = zeros(N.vnode,1);
+    R.g = zeros(N.elem,1);
+    
     J.vv = zeros(N.vnode,N.vnode);
     J.vs = zeros(N.vnode,N.elem);
+    %J.vT = zeros(N.vnode,N.vnode);
+    %J.vg = zeros(N.vnode,N.elem);
+    
     J.sv = zeros(N.elem,N.vnode);
     J.ss = zeros(N.elem,N.elem);
+    J.sT = zeros(N.elem,N.vnode);
+    J.sg = zeros(N.elem,N.elem);
+    
+    %J.Tv = J.vv;
+    J.Ts = J.vs;
+    J.TT = J.vv;
+    J.Tg = J.vg;
+    
+    %J.gv = J.sv;
+    J.gs = J.ss;
+    J.gT = J.sv;
+    J.gg = J.ss;
     
     %Assemble matrices
     for e = 1:N.elem
-        elementMatrix(e); %returns [m,k]
         
         L = N.conn(e,:);
-        xv = [Xt(L) Xn(L)];
-        xs = [Xt(e+N.vnode) Xn(e+N.vnode)];
+        ue = u(L);
+        h = abs(ue(2)-ue(1));
         
-        r = elementResidual(xv,xs);
+        Lv = L;
+        Ls = e+N.vnode;
+        LT = Lv+N.vnode+N.elem;
+        Lg = Ls+N.vnode+N.elem;
+        LL = [Lv Ls LT Lg];
+        
+        x0 = Xt(LL);
+        x  = Xn(LL);
+        
+        [r,m,k] = get_element_stiffness(x0,x,h);
+        
         R.v(L) = R.v(L)+r.v;
-        R.s(e) = R.s(e)+r.s;
+        R.s(e)  = R.s(e)+r.s;
+        R.T(L) = R.T(L)+r.T;
+        R.g(e)  = R.g(e)+r.g;
         
-        j = elementJacobian();
+        j = elementJacobian(m,k);
         J.vv(L,L) = J.vv(L,L)+j.vv;
         J.vs(L,e) = J.vs(L,e)+j.vs;
+        %J.vT
+        %J.vg
+        
         J.sv(e,L) = J.sv(e,L)+j.sv;
         J.ss(e,e) = J.ss(e,e)+j.ss;
+        J.sT(e,L) = J.sT(e,L)+j.sT;
+        J.sg(e,e) = J.sg(e,e)+j.sg;
+        
+        %J.Tv
+        J.Ts(L,e) = J.Ts(L,e)+j.Ts;
+        J.TT(L,L) = J.TT(L,L)+j.TT;
+        J.Tg(L,e) = J.Tg(L,e)+j.Tg;
+        
+        %J.gv
+        J.gs(e,e) = J.gs(e,e)+j.gs;
+        J.gT(e,L) = J.gT(e,L)+j.gT;
+        J.gg(e,e) = J.gg(e,e)+j.gg;
     end
-    R = [R.v; R.s];
-    J = [J.vv J.vs; J.sv J.ss];
-    J = sparse(J);
+    
+    R = [R.v; R.s; R.T R.g];
+    
+    JJ = blkdiag([J.vv J.vs; J.sv J.ss],[J.TT J.Tg; J.gT J.gg]);
+    JJ(Ls,LT) = J.sT;
+    JJ(Ls,Lg) = J.sg;
+    JJ(LT,Ls) = J.Ts;
+    JJ(Lg,Ls) = J.gs;
+    
+    J = sparse(JJ);
 end
 
-function elementMatrix(e)
-    global N u
-    global m k
-    
-    E = 200E9; %Pa
-    rho = 7830; %kg/m^3
-    
-    L = N.conn(e,:);
-    ue = u(L);
-    h = abs(ue(2)-ue(1));
-    J = h/2;
-    
-    Nv = @(x) (1/2)*[1-x 1+x];
-    Bv = (1/h)*[-1 1];
-    Ns = [1];
-    
-    
-    fvv = @(x) rho*Nv(x)'*Nv(x);
-    fvs = @(x) -Bv'*Ns;
-    fsv = @(x) E*Ns'*Bv;
-    fss = @(x) Ns'*Ns;
-    
-    m.vv=0; m.ss=0;
-    k.vs=0; k.sv=0;
-    ngp = 2; %number of Gauss points
-    [W,xi] = gaussQuad(ngp);
-    for i = 1:ngp
-        m.vv = m.vv+W(i)*fvv(xi(i));
-        k.vs = k.vs+W(i)*fvs(xi(i));
-        k.sv = k.sv+W(i)*fsv(xi(i));
-        m.ss = m.ss+W(i)*fss(xi(i));
-    end
-    m.vv = m.vv*J;
-    k.vs = k.vs*J;
-    k.sv = k.sv*J;
-    m.ss = m.ss*J;
-end
-
-function r = elementResidual(xv,xs)
+function j = elementJacobian(m,k)
     global TimeIntPar t
-    global m k
-    
-    xv1 = xv(:,2);
-    xs1 = xs(:,2);
-    xv0 = xv(:,1);
-    xs0 = xs(:,1);
-    
-    a = TimeIntPar.alpha;
-    dt = t.dt;
-    
-    r.v = (m.vv/dt)*(xv1-xv0)-k.vs*((1-a)*xs0+a*xs1);
-    r.s = (m.ss/dt)*(xs1-xs0)-k.sv*((1-a)*xv0+a*xv1);
-end
-
-function j = elementJacobian()
-    global TimeIntPar t
-    global m k
     
     a = TimeIntPar.alpha;
     dt = t.dt;
     
     j.vv = m.vv/dt;
     j.vs = -a*k.vs;
+    %j.vT = 0;
+    %j.vg = 0;
+    
     j.sv = -a*k.sv;
-    j.ss = m.ss/dt;
+    j.ss = m.ss/dt-a*k.ss;
+    j.sT = -a*k.sT;
+    j.sg = -a*k.sg;
+    
+    %j.Tv = 0;
+    j.Ts = -a*k.Ts;
+    j.TT = m.TT/dt-a*k.TT;
+    j.Tg = -a*k.Tg;
+    
+    %j.gv = 0;
+    j.gs = -a*k.gs;
+    j.gT = -a*k.gT;
+    j.gg =  m.gg/dt-a*k.gg;
 end
 
 function [J,R,X] = applyBC(J0,R0,X0)

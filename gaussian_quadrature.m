@@ -1,4 +1,4 @@
-function [W,xi] = gaussQuad(ngp)
+function [W,xi] = gaussian_quadrature(ngp)
 %GAUSSQUAD Returns weights and integration points
 %   W = weights
 %   xi = integration points
