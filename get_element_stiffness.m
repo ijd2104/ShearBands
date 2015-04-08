@@ -1,8 +1,9 @@
-function [r,m,k] = get_element_stiffness(x0,x,h)
+function [r,j] = get_element_stiffness(x0,x,h)
 %GET_ELEMENT_STIFFNESS Computes the terms for FEM matrices of an element
 %   Detailed explanation goes here
     global t TimeIntPar matProp
     
+    %% Initialization
     v0 = x0(1:2);
     s0 = x0(3);
     T0 = x0(4:5);
@@ -45,7 +46,7 @@ function [r,m,k] = get_element_stiffness(x0,x,h)
     %E = matProp.E;
     G = matProp.G;
     
-    %Gauss integration
+    %% Gauss integration
     ngp = 2;
     [W,xi] = gaussian_quadrature(ngp);
     J = h/2;
@@ -80,6 +81,7 @@ function [r,m,k] = get_element_stiffness(x0,x,h)
         k.gg = k.gg+W(i)*dgdp*J;
     end
     
+    %% Compute residual
     dt = t.dt;
     a = TimeIntPar.alpha;
     
@@ -88,11 +90,31 @@ function [r,m,k] = get_element_stiffness(x0,x,h)
     Tdot = (T-T0)/dt;
     pdot = (p-p0)/dt;
     
-    %Compute residual
     r.v = m.v*vdot-(1-a)*(        k.vs*s0                )-a*(       k.vs*s              );
     r.T = m.s*sdot-(1-a)*(k.sv*v0+k.ss*s0+k.sT*T0+k.sg*p0)-a*(k.sv*v+k.ss*s+k.sT*T+k.sg*p);
     r.s = m.T*Tdot-(1-a)*(        k.Ts*s0+k.TT*T0+k.Tg*p0)-a*(       k.Ts*s+k.TT*T+k.Tg*p);
     r.g = m.g*pdot-(1-a)*(        k.gs*s0+k.gT*T0+k.gg*p0)-a*(       k.gs*s+k.gT*T+k.gg*p);
+    
+    %% Compute analytical Jacobian
+    j.vv = m.v/dt;
+    j.vs = -a*k.vs;
+    %j.vT = 0;
+    %j.vg = 0;
+    
+    j.sv = -a*k.sv;
+    j.ss = m.s/dt-a*k.ss;
+    j.sT = -a*k.sT;
+    j.sg = -a*k.sg;
+    
+    %j.Tv = 0;
+    j.Ts = -a*k.Ts;
+    j.TT = m.T/dt-a*k.TT;
+    j.Tg = -a*k.Tg;
+    
+    %j.gv = 0;
+    j.gs = -a*k.gs;
+    j.gT = -a*k.gT;
+    j.gg =  m.g/dt-a*k.gg;
 end
 
 function [B,N] = get_shape_functions(xi,h)

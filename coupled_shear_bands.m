@@ -161,14 +161,15 @@ function [J,R] = matrixAssembly(Xt,Xn)
         x0 = Xt(LL);
         x  = Xn(LL);
         
-        [r,m,k] = get_element_stiffness(x0,x,h);
+        [r,j] = get_element_stiffness(x0,x,h);
         
+        % Residual vector
         R.v(L) = R.v(L)+r.v;
         R.s(e)  = R.s(e)+r.s;
         R.T(L) = R.T(L)+r.T;
         R.g(e)  = R.g(e)+r.g;
         
-        j = elementJacobian(m,k);
+        % Jacobian matrix
         J.vv(L,L) = J.vv(L,L)+j.vv;
         J.vs(L,e) = J.vs(L,e)+j.vs;
         %J.vT
@@ -199,33 +200,6 @@ function [J,R] = matrixAssembly(Xt,Xn)
     JJ(Lg,Ls) = J.gs;
     
     J = sparse(JJ);
-end
-
-function j = elementJacobian(m,k)
-    global TimeIntPar t
-    
-    a = TimeIntPar.alpha;
-    dt = t.dt;
-    
-    j.vv = m.vv/dt;
-    j.vs = -a*k.vs;
-    %j.vT = 0;
-    %j.vg = 0;
-    
-    j.sv = -a*k.sv;
-    j.ss = m.ss/dt-a*k.ss;
-    j.sT = -a*k.sT;
-    j.sg = -a*k.sg;
-    
-    %j.Tv = 0;
-    j.Ts = -a*k.Ts;
-    j.TT = m.TT/dt-a*k.TT;
-    j.Tg = -a*k.Tg;
-    
-    %j.gv = 0;
-    j.gs = -a*k.gs;
-    j.gT = -a*k.gT;
-    j.gg =  m.gg/dt-a*k.gg;
 end
 
 function [J,R,X] = applyBC(J0,R0,X0)
