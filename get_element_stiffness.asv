@@ -1,7 +1,9 @@
-function [r,j] = get_element_stiffness(x0,x,h) 
-    %% Initialization
+function [r,j] = get_element_stiffness(x0,x,h)
+%GET_ELEMENT_STIFFNESS Computes the terms for FEM matrices of an element
+%   Detailed explanation goes here
     global t TimeIntPar matProp
     
+    %% Initialization
     v0 = x0(1:2);
     s0 = x0(3);
     T0 = x0(4:5);
@@ -50,13 +52,13 @@ function [r,j] = get_element_stiffness(x0,x,h)
     J = h/2;
     
     for i = 1:ngp
-        [Nv,Ns,NT,Ng,Bv,BT] = get_shape_functions(xi(i),h);
+        [Nv,Ns,NT,Ng,Bv,Bs,BT,Bg] = get_shape_functions(xi(i),h);
         T_xi = dot(T,N);
         
         %Mass matrix
         m.v = m.v+W(i)*rho*(Nv'*Nv)*J;
-        m.s = m.s+W(i)*(Ns'*Ns)*J;
         m.T = m.T+W(i)*rho*cp*(NT'*NT)*J;
+        m.s = m.s+W(i)*(Ns'*Ns)*J;
         m.g = m.g+W(i)*(Ng'*Ng)*J;
         
         %Linear Stiffness matrix
@@ -70,14 +72,14 @@ function [r,j] = get_element_stiffness(x0,x,h)
         k.sT = k.sT-W(i)*G*dgdT*(Ns'*NT)*J;
         k.sg = k.sg-W(i)*G*dgdp*(Ns'*Ng)*J;
         
-        [F1,F2] = get_F(s,g,dgds);
-        k.Ts = k.Ts+W(i)*F1*s*(NT'*Ns)*J;
-        k.TT = k.TT+W(i)*F2*s*dgdT*(NT'*NT)*J;
-        k.Tg = k.Tg+W(i)*F2*s*dgdp*(NT'*Ng)*J;
-        
         k.gs = k.gs+W(i)*dgds*(Ng'*Ns)*J;
         k.gT = k.gT+W(i)*dgdT*(Ng'*NT)*J;
         k.gg = k.gg+W(i)*dgdp*(Ng'*Ng)*J;
+        
+        [F1,F2] = get_F(s,g,dgds);
+        k.Ts = k.Ts+W(i)*N'*F1*s*J;
+        k.TT = k.TT+W(i)*(N'*N)*F2*s*dgdT*J;
+        k.Tg = k.Tg+W(i)*N'*F2*s*dgdp*J;
     end
     
     %% Compute residual
@@ -116,14 +118,14 @@ function [r,j] = get_element_stiffness(x0,x,h)
     j.gg =  m.g/dt-a*k.gg;
 end
 
-function [Nv,Ns,NT,Ng,Bv,BT] = get_shape_functions(xi,h)
+function [Nv,Ns,NT,Ng,Bv,Bs,BT,Bg] = get_shape_functions(xi,h)
     %For velocity
     Nv = (1/2)*[1-xi 1+xi];
     Bv = (1/h)*[-1, 1];
     
     %For stress
     Ns = 1;
-    %Bs = 0;
+    Bs = 0;
     
     %For temperature
     NT = (1/2)*[1-xi 1+xi];
@@ -131,7 +133,7 @@ function [Nv,Ns,NT,Ng,Bv,BT] = get_shape_functions(xi,h)
     
     %For plastic strain
     Ng = 1;
-    %Bg = 0;
+    Bg = 0;
 end
 
 function [g,dgdp,dgds,dgdT] = get_plastic_strain_rate(s,T,p)
