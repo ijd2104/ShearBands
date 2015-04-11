@@ -51,7 +51,7 @@ function [r,j] = get_element_stiffness(x0,x,h)
     
     for i = 1:ngp
         [Nv,Ns,NT,Ng,Bv,BT] = get_shape_functions(xi(i),h);
-        T_xi = dot(T,N);
+        T_xi = dot(T,NT);
         
         %Mass matrix
         m.v = m.v+W(i)*rho*(Nv'*Nv)*J;
@@ -89,10 +89,23 @@ function [r,j] = get_element_stiffness(x0,x,h)
     Tdot = (T-T0)/dt;
     pdot = (p-p0)/dt;
     
-    r.v = m.v*vdot-(1-a)*(        k.vs*s0                )-a*(       k.vs*s              );
+    fs = 0;
+    fT = zeros(2,1);
+    fg =0;
+    
+    ngp = 1;
+    [W,xi] = gaussian_quadrature(ngp);
+    for i = 1:ngp
+        [Nv,Ns,NT,Ng,Bv,BT] = get_shape_functions(xi(i),h);
+        fs = fs+W(i)*E*g*J;
+        fT = fT+W(i)*N'*s*chi*g*J;
+        fg = fg+W(i)*g*J;
+    end
+    
+    r.v = m.v*vdot-(1-a)*(k.vs*s0)-a*(k.vs*s);
     r.T = m.s*sdot-(1-a)*(k.sv*v0+k.ss*s0+k.sT*T0+k.sg*p0)-a*(k.sv*v+k.ss*s+k.sT*T+k.sg*p);
-    r.s = m.T*Tdot-(1-a)*(        k.Ts*s0+k.TT*T0+k.Tg*p0)-a*(       k.Ts*s+k.TT*T+k.Tg*p);
-    r.g = m.g*pdot-(1-a)*(        k.gs*s0+k.gT*T0+k.gg*p0)-a*(       k.gs*s+k.gT*T+k.gg*p);
+    r.s = m.T*Tdot-(1-a)*(k.Ts*s0+k.TT*T0+k.Tg*p0)-a*(k.Ts*s+k.TT*T+k.Tg*p);
+    r.g = m.g*pdot-(1-a)*(k.gs*s0+k.gT*T0+k.gg*p0)-a*(k.gs*s+k.gT*T+k.gg*p);
     
     %% Compute analytical Jacobian
     j.vv = m.v/dt;
