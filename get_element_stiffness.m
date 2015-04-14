@@ -92,20 +92,20 @@ function [r,j] = get_element_stiffness(x0,x,h)
     fs = 0;
     fT = zeros(2,1);
     fg =0;
-    
     ngp = 1;
     [W,xi] = gaussian_quadrature(ngp);
     for i = 1:ngp
+        [g,dgdp,dgds,dgdT] = get_plastic_strain_rate(s,T_xi,p);
         [Nv,Ns,NT,Ng,Bv,BT] = get_shape_functions(xi(i),h);
-        fs = fs+W(i)*E*g*J;
-        fT = fT+W(i)*N'*s*chi*g*J;
-        fg = fg+W(i)*g*J;
+        fs = fs-W(i)*G*g*(Ns'*Ns)*J;
+        fT = fT+W(i)*chi*s*g*(NT'*Ns)*J;
+        fg = fg+W(i)*g*(Ng'*Ng)*J;
     end
     
     r.v = m.v*vdot-(1-a)*(k.vs*s0)-a*(k.vs*s);
-    r.T = m.s*sdot-(1-a)*(k.sv*v0+k.ss*s0+k.sT*T0+k.sg*p0)-a*(k.sv*v+k.ss*s+k.sT*T+k.sg*p);
-    r.s = m.T*Tdot-(1-a)*(k.Ts*s0+k.TT*T0+k.Tg*p0)-a*(k.Ts*s+k.TT*T+k.Tg*p);
-    r.g = m.g*pdot-(1-a)*(k.gs*s0+k.gT*T0+k.gg*p0)-a*(k.gs*s+k.gT*T+k.gg*p);
+    r.s = m.s*sdot-(1-a)*(k.sv*v0+fs)-a*(k.sv*v+fs1);
+    r.T = m.T*Tdot-(1-a)*(k.Ts*s0+fT)-a*(k.Ts*s+fT1);
+    r.g = m.g*pdot-(1-a)*(fg)-a*(fg);
     
     %% Compute analytical Jacobian
     j.vv = m.v/dt;
