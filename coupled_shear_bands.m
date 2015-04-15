@@ -10,6 +10,11 @@ function X = coupled_shear_bands()
     X = num2cell(zeros(N.node,t.steps/i),1);
     X0 = zeros(N.node,1);
     
+    %Initialize temperature
+    T1 = N.vnode+N.snode+1;
+    Tn = N.vnode+N.snode+N.Tnode;
+    X0(T1:Tn) = 310;
+    
     Xt = X0;
     for n = 2:t.steps
         t.iter = n;
@@ -92,9 +97,9 @@ function Xk = newtonIter(Xt)
     dX.D = -X.D+velBC;
     R.D = -dX.D;
     
-    if condest(J.NN)== Inf
-        J.NN = J.NN+diag(ones(1,2)*1E-7);
-    end
+%     if condest(J.NN)== Inf
+%         J.NN = J.NN+diag(ones(1,2)*1E-7);
+%     end
     dX.N = -J.NN\(R.N+J.ND*dX.D);
     Xk = [X.D+dX.D; X.N+dX.N];
     Xk = unPartition(Xk);
@@ -103,10 +108,10 @@ function Xk = newtonIter(Xt)
         
         [J,R,F] = matrixAssembly(Xt,Xk,F);
         [J,R,X] = applyBC(J,R,Xk);
-
-        if condest(J.NN)==Inf
-            J.NN = J.NN+diag(ones(1,2)*1E-7);
-        end
+        
+%         if condest(J.NN)==Inf
+%             J.NN = J.NN+diag(ones(1,2)*1E-7);
+%         end
         
         if norm(R.N) < ntol
             break
