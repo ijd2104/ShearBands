@@ -1,4 +1,4 @@
-function [r,j,f] = get_element_stiffness(x0,x,h,f0) 
+function [r,j] = get_element_stiffness(x0,x,h,f) 
     %% Initialization
     global t TimeIntPar matProp
     
@@ -6,10 +6,6 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0)
     s0 = x0(3);
     T0 = x0(4:5);
     p0 = x0(6);
-    
-    fs0 = f0(3);
-    fT0 = f0(4:5);
-    fg0 = f0(6);
 
     v = x(1:2);
     s = x(3);
@@ -107,9 +103,9 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0)
     end
     
     r.v = m.v*vdot-(1-a)*(k.vs*s0)-a*(k.vs*s);
-    r.s = m.s*sdot-(1-a)*(k.sv*v0+fs0)-a*(k.sv*v+f.s);
-    r.T = m.T*Tdot-(1-a)*(k.Ts*s0+fT0)-a*(k.Ts*s+f.T);
-    r.g = m.g*pdot-(1-a)*(fg0)-a*(f.g);
+    r.s = m.s*sdot-(1-a)*(k.sv*v0+f.s)-a*(k.sv*v+f.s);
+    r.T = m.T*Tdot-(1-a)*(k.Ts*s0+fT)-a*(k.Ts*s+f.T);
+    r.g = m.g*pdot-(1-a)*(fg)-a*(fg);
     
     %% Compute analytical Jacobian
     j.vv = m.v/dt;

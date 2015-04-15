@@ -74,18 +74,18 @@ function getMesh()
 end
 
 function Xk = newtonIter(Xt)
-    global NewtonPar N
+    global NewtonPar
     
     niter = NewtonPar.iter;
     ntol = NewtonPar.NormTol;
     
     Xk = Xt;
-    F0 = [zeros(N.vnode,1);  %velocity
-         zeros(N.snode,1);  %stress
-         zeros(N.Tnode,1);  %temperature
-         zeros(N.gnode,1)]; %plastic strain
+    F = [zeros(N.vnode,1); %velocity
+         zeros(N.snode,1); %stress
+    zeros(N.Tnode,1);
+    zeros(N.gnode,1);
     
-    [J,R,F] = matrixAssembly(Xt,Xk,F0);
+    [J,R] = matrixAssembly(Xt,Xk,F);
     %[J,R,X] = matrixPartition(J,R,Xk);
     [J,R,X] = applyBC(J,R,Xk);
     
@@ -98,7 +98,7 @@ function Xk = newtonIter(Xt)
     
     for k = 1:niter
         %fprintf('Newton iteration %d\n',k);
-        [J,R,F] = matrixAssembly(Xt,Xk,F);
+        [J,R] = matrixAssembly(Xt,Xk);
         [J,R,X] = applyBC(J,R,Xk);
 
         %norm(R.N)
@@ -123,7 +123,7 @@ function Xk = newtonIter(Xt)
         pause(.001)
 end
 
-function [J,R,F] = matrixAssembly(Xt,Xn,F0)
+function [J,R] = matrixAssembly(Xt,Xn,f)
     global N u
     
     %Initialize matrices
@@ -131,11 +131,6 @@ function [J,R,F] = matrixAssembly(Xt,Xn,F0)
     R.s = zeros(N.snode,1);
     R.T = zeros(N.Tnode,1);
     R.g = zeros(N.gnode,1);
-    
-    F.v = zeros(N.vnode,1);
-    F.s = zeros(N.snode,1);
-    F.T = zeros(N.Tnode,1);
-    F.g = zeros(N.gnode,1);
     
     J.vv = zeros(N.vnode,N.vnode);
     J.vs = zeros(N.vnode,N.snode);
@@ -172,9 +167,8 @@ function [J,R,F] = matrixAssembly(Xt,Xn,F0)
         
         x0 = Xt(LL);
         x  = Xn(LL);
-        f0 = F0(LL);
         
-        [r,j,f] = get_element_stiffness(x0,x,h,f0);
+        [r,j,f] = get_element_stiffness(x0,x,h,f);
         
         % Residual vector
         R.v(L) = R.v(L)+r.v;
@@ -184,8 +178,8 @@ function [J,R,F] = matrixAssembly(Xt,Xn,F0)
         
         %Forcing vector
         F.s(e) = F.s(e)+f.s;
-        F.T(L) = F.T(L)+f.T;
-        F.g(e) = F.g(e)+f.g;
+        F.T(L) = F.T(L)+r.T;
+        F.g(e) = F.g(e)+r.g;
         
         % Jacobian matrix
         J.vv(L,L) = J.vv(L,L)+j.vv;
@@ -210,7 +204,6 @@ function [J,R,F] = matrixAssembly(Xt,Xn,F0)
     end
     
     R = [R.v; R.s; R.T; R.g];
-    F = [F.v; F.s; F.T; F.g];
     
     JJ = [J.vv J.vs J.vT J.vg;
           J.sv J.ss J.sT J.sg;
