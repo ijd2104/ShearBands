@@ -86,26 +86,33 @@ function Xk = newtonIter(Xt)
          zeros(N.gnode,1)]; %plastic strain
     
     [J,R,F] = matrixAssembly(Xt,Xk,F0);
-    %[J,R,X] = matrixPartition(J,R,Xk);
     [J,R,X] = applyBC(J,R,Xk);
     
     velBC = get_vbc(X);
     dX.D = -X.D+velBC;
     R.D = -dX.D;
+    
+    if condest(J.NN)== Inf
+        J.NN = J.NN+diag(ones(1,2)*1E-7);
+    end
     dX.N = -J.NN\(R.N+J.ND*dX.D);
     Xk = [X.D+dX.D; X.N+dX.N];
     Xk = unPartition(Xk);
     
     for k = 1:niter
-        %fprintf('Newton iteration %d\n',k);
+        
         [J,R,F] = matrixAssembly(Xt,Xk,F);
         [J,R,X] = applyBC(J,R,Xk);
 
-        %norm(R.N)
+        if condest(J.NN)==Inf
+            J.NN = J.NN+diag(ones(1,2)*1E-7);
+        end
+        
         if norm(R.N) < ntol
             break
         end
-        if k==20,
+        
+        if k==20
             error('stop')
         end
         
@@ -231,6 +238,7 @@ function [J,R,X] = applyBC(J0,R0,X0)
         eN(eN==eD(i)) = [];
     end    
     
+    %Normalization of variables
     R0(1:N.vnode) = R0(1:N.vnode)/1E4;
     R0(N.vnode+1:end) = R0(N.vnode+1:end)/250E9;
     J0(1:N.vnode,:) = J0(1:N.vnode,:)/1E4;
@@ -240,11 +248,10 @@ function [J,R,X] = applyBC(J0,R0,X0)
     X.N = X0(eN);
     J.ND = J0(eN,eD);
     J.NN = J0(eN,eN);
-    J.DN = 0.0.*J0(eD,eN);
+    J.DN = 0*J0(eD,eN);
     J.DD = eye(nBC);
     R.N = R0(eN);
     R.D = R0(eD);
-    
     
     X.BCp = zeros(size(BC,1),1);
     for i = 1:size(BC,1)
