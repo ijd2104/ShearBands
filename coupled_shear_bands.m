@@ -97,21 +97,21 @@ function Xk = newtonIter(Xt)
     dX.D = -X.D+velBC;
     R.D = -dX.D;
     
-%     if condest(J.NN)== Inf
-%         J.NN = J.NN+diag(ones(1,2)*1E-7);
-%     end
+%      if condest(J.NN)== Inf
+%          J.NN = J.NN+diag(ones(1,3)*1E-7);
+%      end
     dX.N = -J.NN\(R.N+J.ND*dX.D);
     Xk = [X.D+dX.D; X.N+dX.N];
     Xk = unPartition(Xk);
     
     for k = 1:niter
-        
+        disp(k)
         [J,R,F] = matrixAssembly(Xt,Xk,F);
         [J,R,X] = applyBC(J,R,Xk);
         
-%         if condest(J.NN)==Inf
-%             J.NN = J.NN+diag(ones(1,2)*1E-7);
-%         end
+%          if condest(J.NN)==Inf
+%              J.NN = J.NN+diag(ones(1,3)*1E-7);
+%          end
         
         if norm(R.N) < ntol
             break
@@ -242,12 +242,6 @@ function [J,R,X] = applyBC(J0,R0,X0)
     for i = 1:nBC
         eN(eN==eD(i)) = [];
     end    
-    
-%     %Normalization of variables
-%     R0(1:N.vnode) = R0(1:N.vnode)/1E4;
-%     R0(N.vnode+1:end) = R0(N.vnode+1:end)/250E9;
-%     J0(1:N.vnode,:) = J0(1:N.vnode,:)/1E4;
-%     J0(N.vnode+1:end,:)=J0(N.vnode+1:end,:)/250E9;
     
     X.D = X0(eD);
     X.N = X0(eN);

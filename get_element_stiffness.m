@@ -4,6 +4,7 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0)
     
     v0 = x0(1:2);
     s0 = x0(3);
+
     T0 = x0(4:5);
     p0 = x0(6);
     
@@ -13,9 +14,6 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0)
 
     v = x(1:2);
     s = x(3);
-    if s > 1E6
-        %pause
-    end
     T = x(4:5);
     p = x(6);
 
@@ -116,88 +114,51 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0)
     
     %% Compute analytical Jacobian
     j.vv = m.v/dt;
-    if isnan(sum(sum(j.vv))) || isinf(sum(sum(j.vv)))
-        %j.vv
-    end
     j.vs = -a*k.vs;
-    if isnan(sum(sum(j.vs))) || isinf(sum(sum(j.vs)))
-        %j.vs
-    end
     %j.vT = 0;
     %j.vg = 0;
     
     j.sv = -a*k.sv;
-    if isnan(sum(sum(j.sv))) || isinf(sum(sum(j.sv)))
-        %j.sv
-    end
     j.ss = m.s/dt-a*k.ss;
-    if isnan(sum(sum(j.ss))) || isinf(sum(sum(j.ss)))
-        %j.ss
-    end
-    
     j.sT = -a*k.sT;
-    if isnan(sum(sum(j.sT))) || isinf(sum(sum(j.sT)))
-        %j.sT
-    end
     j.sg = -a*k.sg;
-    if isnan(sum(sum(j.sg))) || isinf(sum(sum(j.sg)))
-        %j.sg
-    end
     
     %j.Tv = 0;
     j.Ts = -a*k.Ts;
-    if isnan(sum(sum(j.Ts))) || isinf(sum(sum(j.Ts)))
-        %j.Ts
-    end
     j.TT = m.T/dt-a*k.TT;
-    if isnan(sum(sum(j.TT))) || isinf(sum(sum(j.TT)))
-        %j.TT
-    end
     j.Tg = -a*k.Tg;
-    if isnan(sum(sum(j.Tg))) || isinf(sum(sum(j.Tg)))
-        %j.Tg
-    end
-%     
+     
     %j.gv = 0;
     j.gs = -a*k.gs;
-    if isnan(sum(sum(j.gs))) || isinf(sum(sum(j.gs)))
-        %j.gs
-    end
-     j.gT = -a*k.gT;
-    if isnan(sum(sum(j.gT))) || isinf(sum(sum(j.gT)))
-        %j.gT
-    end
+    j.gT = -a*k.gT;
     j.gg =  m.g/dt-a*k.gg;
-    if isnan(sum(sum(j.gg))) || isinf(sum(sum(j.gg)))
-        %j.gg
-    end
     
     %% Normalization
-    normv = 1E4; %wild guess
-    norms = 457.3E6; %yield shear stress
-    normT = 298; %reference temperature
-    normg = 457.3E6/200E9; %yield strain
-    
-    r.v = r.v/normv;
-    r.s = r.s/norms;
-    r.T = r.T/normT;
-    r.g = r.g/normg;
-    
-    j.vv = j.vv/normv;
-    j.vs = j.vs/normv;
-    
-    j.sv = j.sv/norms;
-    j.ss = j.ss/norms;
-    j.sT = j.sT/norms;
-    j.sg = j.sg/norms;
-    
-    j.Ts = j.Ts/normT;
-    j.TT = j.TT/normT;
-    j.Tg = j.Tg/normT;
-    
-    j.gs = j.gs/normg;
-    j.gT = j.gT/normg;
-    j.gg = j.gg/normg;
+%     normv = 1E4; %wild guess
+%     norms = 457.3E6; %yield shear stress
+%     normT = 298; %reference temperature
+%     normg = 457.3E6/200E9; %yield strain
+%     
+%     r.v = r.v/normv;
+%     r.s = r.s/norms;
+%     r.T = r.T/normT;
+%     r.g = r.g/normg;
+%     
+%     j.vv = j.vv/normv;
+%     j.vs = j.vs/normv;
+%     
+%     j.sv = j.sv/norms;
+%     j.ss = j.ss/norms;
+%     j.sT = j.sT/norms;
+%     j.sg = j.sg/norms;
+%     
+%     j.Ts = j.Ts/normT;
+%     j.TT = j.TT/normT;
+%     j.Tg = j.Tg/normT;
+%     
+%     j.gs = j.gs/normg;
+%     j.gT = j.gT/normg;
+%     j.gg = j.gg/normg;
     
 end
 
@@ -237,7 +198,6 @@ function [g,dgdp,dgds,dgdT] = get_plastic_strain_rate(s,T,p)
     g = pdotr*exp((s/(P*Q)-1)/c);
     dgds = g/(c*P*Q);
     dgdp = -dgds*B*N*p^(N-1)*s/Q;
-    %if p is zero, dgdp becomes NaN
     dgdT = dgds*m*s*((T-To)/(Tm-To))^(m-1)/(P*(Tm-To));
     
     if g <= 1E-16
@@ -250,11 +210,10 @@ function [g,dgdp,dgds,dgdT] = get_plastic_strain_rate(s,T,p)
         dgdp = 0;
     elseif isnan(g)
         %Stress s is NaN, P is NaN, Q is huge
-        error('g is undefined')
+        error('g is NaN')
     end
-    
     if isinf(dgds)
-        %dgds
+        error('dgds is infinite')
     end
     
 end
