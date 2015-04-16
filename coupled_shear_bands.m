@@ -243,11 +243,11 @@ function [J,R,X] = applyBC(J0,R0,X0)
         eN(eN==eD(i)) = [];
     end    
     
-    %Normalization of variables
-    R0(1:N.vnode) = R0(1:N.vnode)/1E4;
-    R0(N.vnode+1:end) = R0(N.vnode+1:end)/250E9;
-    J0(1:N.vnode,:) = J0(1:N.vnode,:)/1E4;
-    J0(N.vnode+1:end,:)=J0(N.vnode+1:end,:)/250E9;
+%     %Normalization of variables
+%     R0(1:N.vnode) = R0(1:N.vnode)/1E4;
+%     R0(N.vnode+1:end) = R0(N.vnode+1:end)/250E9;
+%     J0(1:N.vnode,:) = J0(1:N.vnode,:)/1E4;
+%     J0(N.vnode+1:end,:)=J0(N.vnode+1:end,:)/250E9;
     
     X.D = X0(eD);
     X.N = X0(eN);
