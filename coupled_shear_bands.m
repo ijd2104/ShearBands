@@ -31,7 +31,7 @@ function setupData()
     global t TimeIntPar NewtonPar matProp modelPar
     
     %Time data
-    t.total = 2/5048; %Time for wave to travel 1m, 1/5000
+    t.total = 2/4000;
     t.steps = 1000;
     t.dt = t.total/t.steps;
     t.ramp = t.total/10;
@@ -129,6 +129,7 @@ function Xk = newtonIter(Xt)
         figure(1)
         plot(Xk(1:101))
         axis([0 101 -0.1 0.1])
+        set(gcf,'name','Coupled Shear Bands','numbertitle','off')
         xlabel('Nodes')
         ylabel('Velocity m/s')
         pause(.001)
