@@ -129,7 +129,7 @@ function Xk = newtonIter(Xt)
     end
         figure(1)
         plot(Xk(1:101))
-        axis([0 101 -8E5 8E5])
+        axis([0 101 -0.1 0.1])
         xlabel('Nodes')
         ylabel('Velocity m/s')
         pause(.001)
@@ -186,7 +186,7 @@ function [J,R,F] = matrixAssembly(Xt,Xn,F0)
         x  = Xn(LL);
         f0 = F0(LL);
         
-        [r,j,f] = get_element_stiffness(x0,x,h,f0);
+        [r,j,f] = get_element_stiffness(x0,x,h,f0,6);
         
         % Residual vector
         R.v(L) = R.v(L)+r.v;
@@ -275,7 +275,7 @@ end
 
 function v = get_vel()
     global t
-    v0 = 10;
+    v0 = 1E-6;
     
     a = t.curr/t.ramp;
     if a < 1

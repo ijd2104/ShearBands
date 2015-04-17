@@ -1,10 +1,24 @@
-function [r,j,f] = get_element_stiffness(x0,x,h,f0) 
+function [r,j,f] = get_element_stiffness(x0,x,h,f0,flg) 
+% Inputs
+% x0  -  x at the previous time step
+% x   -  x at the current Newton iteration
+% h   -  element size
+% f0  -  forcings from the previous Newton iteration
+% flg -  flag
+%        3 for residual only
+%        5 for jacobian only
+%        6 for jacobian + residual
+
+% Outputs
+% r   -  element residual
+% j   -  element jacobian
+% f   -  element forcings at the current Newton iteration
+
     %% Initialization
     global t TimeIntPar matProp
     
     v0 = x0(1:2);
     s0 = x0(3);
-
     T0 = x0(4:5);
     p0 = x0(6);
     
@@ -29,25 +43,30 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0)
     k.sv = zeros(1,2);
     k.TT = zeros(2,2);
     
+    %Forcings
+    f.s = 0;
+    f.T = zeros(2,1);
+    f.g =0;
+    
     %Non linear terms
-    k.ss = 0;
-    k.sT = zeros(1,2);
-    k.sg = 0;
+    G.ss = 0;
+    G.sT = zeros(1,2);
+    G.sg = 0;
     
-    k.Ts = zeros(2,1);
-    %k.TT = zeros(2,2);
-    k.Tg = zeros(2,1);
+    G.Ts = zeros(2,1);
+    G.TT = zeros(2,2);
+    G.Tg = zeros(2,1);
     
-    k.gs = 0;
-    k.gT = zeros(1,2);
-    k.gg = 0;
+    G.gs = 0;
+    G.gT = zeros(1,2);
+    G.gg = 0;
     
     %Load material properties
     rho = matProp.rho;
     cp = matProp.cp;
     lambda = matProp.lambda;
     chi = matProp.chi;
-    G = matProp.G;
+    E = matProp.G;
     
     %% Gauss integration
     ngp = 2;
@@ -57,6 +76,8 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0)
     for i = 1:ngp
         [Nv,Ns,NT,Ng,Bv,BT] = get_shape_functions(xi(i),h);
         T_xi = dot(T,NT);
+        [g,dgdp,dgds,dgdT] = get_plastic_strain_rate(s,T_xi,p);
+        [F1,F2] = get_F(s,g,dgds);
         
         %Mass matrix
         m.v = m.v+W(i)*rho*(Nv'*Nv)*J;
@@ -66,72 +87,75 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0)
         
         %Linear Stiffness matrix
         k.vs = k.vs-W(i)*(Bv'*Ns)*J;
-        k.sv = k.sv+W(i)*G*(Ns'*Bv)*J;
+        k.sv = k.sv+W(i)*E*(Ns'*Bv)*J;
         k.TT = k.TT-W(i)*lambda*(BT'*BT)*J;
         
+        if flg==3 || flg==6 %residual+jacobian
+            %Forcings
+            f.s = f.s-W(i)*E*g*Ns'*J;
+            f.T = f.T+W(i)*chi*s*g*NT'*J;
+            f.g = f.g+W(i)*g*Ng'*J;
+            if flg==3 %residual only
+                continue
+            end
+        end
+        
         %Non linear stiffness matrix
-        [g,dgdp,dgds,dgdT] = get_plastic_strain_rate(s,T_xi,p);
-        k.ss = k.ss-W(i)*G*dgds*(Ns'*Ns)*J;
-        k.sT = k.sT-W(i)*G*dgdT*(Ns'*NT)*J;
-        k.sg = k.sg-W(i)*G*dgdp*(Ns'*Ng)*J;
+        G.ss = G.ss-W(i)*E*dgds*(Ns'*Ns)*J;
+        G.sT = G.sT-W(i)*E*dgdT*(Ns'*NT)*J;
+        G.sg = G.sg-W(i)*E*dgdp*(Ns'*Ng)*J;
         
-        [F1,F2] = get_F(s,g,dgds);
-        k.Ts = k.Ts+W(i)*F1*s*(NT'*Ns)*J;
-        k.TT = k.TT+W(i)*F2*s*dgdT*(NT'*NT)*J;
-        k.Tg = k.Tg+W(i)*F2*s*dgdp*(NT'*Ng)*J;
+        G.Ts = G.Ts+W(i)*F1*s*(NT'*Ns)*J;
+        G.TT = G.TT+W(i)*F2*s*dgdT*(NT'*NT)*J;
+        G.Tg = G.Tg+W(i)*F2*s*dgdp*(NT'*Ng)*J;
         
-        k.gs = k.gs+W(i)*dgds*(Ng'*Ns)*J;
-        k.gT = k.gT+W(i)*dgdT*(Ng'*NT)*J;
-        k.gg = k.gg+W(i)*dgdp*(Ng'*Ng)*J;
+        G.gs = G.gs+W(i)*dgds*(Ng'*Ns)*J;
+        G.gT = G.gT+W(i)*dgdT*(Ng'*NT)*J;
+        G.gg = G.gg+W(i)*dgdp*(Ng'*Ng)*J;
     end
     
     %% Compute residual
-    dt = t.dt;
-    a = TimeIntPar.alpha;
-    
-    vdot = (v-v0)/dt;
-    sdot = (s-s0)/dt;
-    Tdot = (T-T0)/dt;
-    pdot = (p-p0)/dt;
-    
-    f.s = 0;
-    f.T = zeros(2,1);
-    f.g =0;
-    ngp = 2;
-    [W,xi] = gaussian_quadrature(ngp);
-    for i = 1:ngp
-        [g,dgdp,dgds,dgdT] = get_plastic_strain_rate(s,T_xi,p);
-        [Nv,Ns,NT,Ng,Bv,BT] = get_shape_functions(xi(i),h);
-        f.s = f.s-W(i)*G*g*(Ns'*Ns)*J;
-        f.T = f.T+W(i)*chi*s*g*(NT'*Ns)*J;
-        f.g = f.g+W(i)*g*(Ng'*Ng)*J;
+    if flg==3 || flg==6 %residual / residual+jacobian
+        dt = t.dt;
+        a = TimeIntPar.alpha;
+        
+        vdot = (v-v0)/dt;
+        sdot = (s-s0)/dt;
+        Tdot = (T-T0)/dt;
+        pdot = (p-p0)/dt;
+        
+        r.v = m.v*vdot-(1-a)*(k.vs*s0)-a*(k.vs*s);
+        r.s = m.s*sdot-(1-a)*(k.sv*v0+fs0)-a*(k.sv*v+f.s);
+        r.T = m.T*Tdot-(1-a)*(k.TT*T0+fT0)-a*(k.TT*T+f.T);
+        r.g = m.g*pdot-(1-a)*(fg0)-a*(f.g);
+    elseif flg==5 %jacobian only
+        r = [];
+        f = f0;
     end
-    
-    r.v = m.v*vdot-(1-a)*(k.vs*s0)-a*(k.vs*s);
-    r.s = m.s*sdot-(1-a)*(k.sv*v0+fs0)-a*(k.sv*v+f.s);
-    r.T = m.T*Tdot-(1-a)*(k.Ts*s0+fT0)-a*(k.Ts*s+f.T);
-    r.g = m.g*pdot-(1-a)*(fg0)-a*(f.g);
-    
     %% Compute analytical Jacobian
-    j.vv = m.v/dt;
-    j.vs = -a*k.vs;
-    %j.vT = 0;
-    %j.vg = 0;
-    
-    j.sv = -a*k.sv;
-    j.ss = m.s/dt-a*k.ss;
-    j.sT = -a*k.sT;
-    j.sg = -a*k.sg;
-    
-    %j.Tv = 0;
-    j.Ts = -a*k.Ts;
-    j.TT = m.T/dt-a*k.TT;
-    j.Tg = -a*k.Tg;
-     
-    %j.gv = 0;
-    j.gs = -a*k.gs;
-    j.gT = -a*k.gT;
-    j.gg =  m.g/dt-a*k.gg;
+    if flg==5 || flg==6 %jacobian / residual+jacobian
+        j.vv = m.v/dt;
+        j.vs = -a*k.vs;
+        %j.vT = 0;
+        %j.vg = 0;
+        
+        j.sv = -a*k.sv;
+        j.ss = m.s/dt-a*G.ss;
+        j.sT = -a*G.sT;
+        j.sg = -a*G.sg;
+        
+        %j.Tv = 0;
+        j.Ts = -a*G.Ts;
+        j.TT = m.T/dt-a*(k.TT+G.TT);
+        j.Tg = -a*G.Tg;
+        
+        %j.gv = 0;
+        j.gs = -a*G.gs;
+        j.gT = -a*G.gT;
+        j.gg =  m.g/dt-a*G.gg;
+    elseif flg==3 %residual only
+        j = [];
+    end
     
     %% Normalization
 %     normv = 1E4; %wild guess
