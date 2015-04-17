@@ -105,7 +105,6 @@ function Xk = newtonIter(Xt)
     Xk = unPartition(Xk);
     
     for k = 1:niter
-        disp(k)
         [J,R,F] = matrixAssembly(Xt,Xk,F);
         [J,R,X] = applyBC(J,R,Xk);
         
