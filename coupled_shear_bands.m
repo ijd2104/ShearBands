@@ -19,13 +19,15 @@ function X = coupled_shear_bands()
     for n = 2:t.steps
         t.iter = n;
         t.curr = t.curr+t.dt;
+        clc
+        disp('Progress: ')
+        disp(strcat(num2str(t.curr/t.total*100),'%'))
         Xt = newtonIter(Xt);
         if mod(n,10)==0
             X{n/i} = Xt;
         end
     end
     X = [X0 cell2mat(X)];
-    plot(X(N.vnode+N.snode,:))
 end
 
 function setupData()
