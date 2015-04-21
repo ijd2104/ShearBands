@@ -1,4 +1,4 @@
-function [r,j,f] = get_element_stiffness(x0,x,h,f0,flg) 
+function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg) 
 % Inputs
 % x0  -  x at the previous time step
 % x   -  x at the current Newton iteration
@@ -76,7 +76,10 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,flg)
     for i = 1:ngp
         [Nv,Ns,NT,Ng,Bv,BT] = get_shape_functions(xi(i),h);
         T_xi = dot(T,NT);
-        [g,dgdp,dgds,dgdT] = get_plastic_strain_rate(s,T_xi,p);
+        x_xi = dot(ue,Nv);
+        nimp = set_imperfection(x_xi);
+        
+        [g,dgdp,dgds,dgdT] = get_plastic_strain_rate(s,T_xi,p,nimp);
         [F1,F2] = get_F(s,g,dgds);
         
         %Mass matrix
@@ -158,7 +161,7 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,flg)
     end
     
     %% Normalization
-    normv = 1.5*v_BC*pi/t.ramp; %maximum vel (equivalent to 15)
+    normv = v_BC; %maximum vel (equivalent to 15)
     norms = 457.3E6; %yield shear stress
     normT = 298; %reference temperature
     normg = 1E-8;%457.3E6/200E9; %yield strain
@@ -204,11 +207,11 @@ function [Nv,Ns,NT,Ng,Bv,BT] = get_shape_functions(xi,h)
     %Bg = 0;
 end
 
-function [g,dgdp,dgds,dgdT] = get_plastic_strain_rate(s,T,p)
+function [g,dgdp,dgds,dgdT] = get_plastic_strain_rate(s,T,p,nimp)
     %Load constitutive model parameters
     global modelPar
-    A = modelPar.A;
-    B = modelPar.B;
+    A = modelPar.A*nimp;
+    B = modelPar.B*nimp;
     N = modelPar.N;
     To = modelPar.To;
     Tm = modelPar.Tm;
@@ -255,4 +258,13 @@ function [F1,F2] = get_F(s,g,dgds)
         F1 = 0;
     end
     F2 = chi*(dndg*g+n);
+end
+
+function nimp = set_imperfection(x)
+    e = 1E1;
+    ared = 0.01;
+    r0 = 10E-6;
+    x0 = 1E-3/2;
+    rn = abs(x-x0)/r0;
+    nimp = 1-ared*(2/(e^rn+e^(-rn)));
 end

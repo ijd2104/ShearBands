@@ -38,7 +38,7 @@ function setupData()
     t.curr = 0;
     
     %Initial velocity
-    v_BC = t.ramp*10/pi;
+    v_BC = 10;
     
     %Newton's method parameters
     NewtonPar.NormTol = 1E-5;
@@ -71,15 +71,37 @@ function getMesh()
     global N u
     
     L = 1E-3;
-    
-    N.elem = 100;
-    u = 0:(L/N.elem):L; %position of nodes
-    N.vnode = numel(u);
-    N.Tnode = numel(u);
+  
+    N.elem = 400;
+    N.vnode = N.elem+1;
+    N.Tnode = N.elem+1;
     N.snode = N.elem;
     N.gnode = N.elem;
     N.conn = [1:N.elem; 2:N.vnode]';
     N.node = N.vnode+N.Tnode+N.snode+N.gnode;
+    
+    de = 2E-6;
+    B = 0.25;
+    P = 5;
+    nnode = round(N.vnode/2);
+    S0 = de/(L/2)*nnode;
+    
+    u = zeros(1,nnode);
+    for i = 1:nnode
+        xrel = i/nnode;
+        if xrel<=B
+            u(i) = S0*xrel;
+        elseif xrel>B
+            u(i) = S0*xrel+(1-S0)*((xrel-B)/(1-B))^P;
+        end
+    end
+    u_flp = -fliplr(u);
+    if mod(nnode,2)
+        u = [u_flp(1:end-1) u];
+    else
+        u = [u_flp u];
+    end
+    u = u/2E3;
 end
 
 function Xk = newtonIter(Xt)
@@ -132,7 +154,7 @@ function Xk = newtonIter(Xt)
         end
     end
     
-    vmax = 1.5*v_BC*pi/t.ramp;
+    vmax = 1.5*v_BC;
     if t.curr == t.dt
         figure(1)
         plot(Xk(1:N.vnode))
@@ -198,7 +220,7 @@ function [J,R,F] = matrixAssembly(Xt,Xn,F0)
         x  = Xn(LL);
         f0 = F0(LL);
         
-        [r,j,f] = get_element_stiffness(x0,x,h,f0,6);
+        [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,6);
         
         % Residual vector
         R.v(L) = R.v(L)+r.v;
@@ -290,9 +312,9 @@ function v = get_vel()
     
     a = t.curr/t.ramp;
     if a < 1
-        f = (pi/t.ramp)*sin(a*2*pi);
+        f = a;
     else
-        f = 0;
+        f = 1;
     end
     v = v_BC*f;
 end
