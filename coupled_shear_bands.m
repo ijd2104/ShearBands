@@ -162,7 +162,7 @@ function Xk = newtonIter(Xt)
         p = findobj(gcf,'Type','Line');
         set(p,'YData',Xk(1:N.vnode));
     end
-    axis([0 N.vnode -vmax vmax])
+    axis([1 N.vnode -vmax vmax])
     set(gcf,'name','Coupled Shear Bands','numbertitle','off')
     xlabel('Nodes')
     ylabel('Velocity m/s')
