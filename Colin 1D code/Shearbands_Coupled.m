@@ -1,11 +1,21 @@
-function Shearbands_Coupled()
-globvarssb;
-vo = 10;
-tsteps = 2000;
-totaltime = 2/5048;
-timeramp = totaltime/10;%1.0e-6;
-dt = totaltime/tsteps;
+function Shearbands_Coupled(divide,vo)
 
+dt = 5e-9;
+
+globvarssb;
+totaltime = 2.5*1.0e-6;
+timeramp = 1.0e-6;
+
+%Data to save, 1 to save, 0 to not
+Save_V = 1;
+Save_d = 1;
+Save_timeandres = 1;
+Save_T = 1;
+Save_stress = 1;
+Save_plastic_strain = 1;
+Save_mesh = 1;
+Save_options = 1;
+Save_residuals = 0;
 
 %input options
        
@@ -16,8 +26,13 @@ integration_rule = 'Backward Euler';
 %integration_rule = 'Foreward Euler';
 %integration_rule = 'Trapezoidal Rule';
 
-%{
-L = 1;
+
+
+
+       
+
+
+L = 1e-3;
 %{
 pl = 5;
 x = zeros(nnode,1);
@@ -42,27 +57,22 @@ ldomain9 = .0002;
 domain=[ldomain1, ldomain2, ldomain3, ldomain4, ldomain5, ldomain6, ldomain7, ldomain8, ldomain9]; % size of domain
 
 %}
-% ldomain1 = .0004;
-% ldomain2 = .000098;
-% ldomain3 = .000004;
-% ldomain4 = .000098;
-% ldomain5 = .0004;
-% 
-% 
-% 
-% domain=[ldomain1, ldomain2, ldomain3, ldomain4, ldomain5]; % size of domain
+ldomain1 = .0004;
+ldomain2 = .000098;
+ldomain3 = .000004;
+ldomain4 = .000098;
+ldomain5 = .0004;
+
+
+
+domain=[ldomain1, ldomain2, ldomain3, ldomain4, ldomain5]; % size of domain
 % create 1d mesh
 % ---------------
-%}
 % [x,IEN,nel,nnode]= get1dmesh(domain,divide,L);
 
-L = 1;
-nel = 100;
-nnode = nel+1;
-x = 0:(1/nnode):L;
-IEN = [1:nel; 2:nnode]';
 
-%load disc3;
+
+load disc3;
 neq = nnode;
 %x   =  linspace(0,L,nnode);
 options{1} = ['Integration Rule = ',integration_rule];
@@ -84,7 +94,7 @@ nvbcnode = 2; % total number of velocity BC node
 
 
 vbcnode(1) = 1; % node #
-vbc(1) = 0; % prescribed velocity
+vbc(1) = -vo; % prescribed velocity
 
 vbcnode(2) = nnode; 
 vbc(2) = vo;
@@ -92,8 +102,7 @@ vbc(2) = vo;
 
 date_and_time = datestr(now);
 
-
-%{
+    
 if Save_options == 1
     fid_options = fopen(['Shearband1D_Implicit_Options_',date_and_time,'.txt'],'w');
     for i = 1:length(options)
@@ -107,7 +116,7 @@ if Save_mesh ==1
     fprintf(fid_mesh,' %e',x); %minimum number of digits to be printed is 4, number of digits    
     fclose(fid_mesh);    
 end
-%}
+
 
 %% Initial values
 V = zeros(neq,1);
@@ -154,8 +163,9 @@ for e = 1:nel
 end
 X0 = vertcat(V,stress,T,plastic_strain);
 d0 = d;
-tol = 1e-5;
+tol = 1e-13;
 time = 0;
+
 % save init_vec_mat Mv Kv Msig Ksig MT KT Mgamp fv0 fsig0 fT0 fgamp0;
 % return
 
@@ -169,8 +179,8 @@ while time < totaltime
     Velbc = zeros(nvbcnode,1);
     for inode=1:nvbcnode
         if ( time <= timeramp ) % within ramp function region
-            V(vbcnode(inode)) = (pi/timeramp)*sin(time/timeramp*2*pi)*vbc(inode);
-            Velbc(inode) = (pi/timeramp)*sin(time/timeramp*2*pi)*vbc(inode);
+            V(vbcnode(inode)) = (time/timeramp) * vbc(inode);
+            Velbc(inode) = (time/timeramp) * vbc(inode);
         else
             V(vbcnode(inode)) = vbc(inode);
             Velbc(inode) = vbc(inode);
@@ -187,13 +197,12 @@ while time < totaltime
     JAC = assemble_jacobian(X,nel,nnode,Mv,Kv,Ksig,Msig,MT,KT,Mgamp,prop,dt,IEN,x,imper,Velbc(2));
     disp(['Time = ',num2str(time,'%10.4e'),', Residual = ',num2str(norm(Residual),'%10.4e')])
     Newton_count = 0;
-    
+    return;
     %%%%%%%%%%%%%%%%%%%%%
     % Newton Iterations %
     %%%%%%%%%%%%%%%%%%%%%
     while normres > tol 
-        
-        Newton_count = Newton_count + 1
+        Newton_count = Newton_count + 1;
         if Newton_count > 10
             dt = dt/2;
             X = X0;
@@ -233,10 +242,10 @@ while time < totaltime
     end
     
     luc_count = luc_count + 1;
-%     if luc_count == 5
-%         save jacobian JAC Residual;
-%         return;
-%     end
+    if luc_count == 5
+        save jacobian JAC Residual;
+        return;
+    end
     
     %%%%%%%%%%%%%%
     % End Newton %
@@ -245,12 +254,6 @@ while time < totaltime
   %  [Residual,JAC,fv_new,fsig_new,fT_new,fgamp_new] = evaluate_residual_FC(X,nnode,nel,dt,IEN,Mv,Kv,Msig,Ksig,MT,KT,Mgamp,V,stress,T,plastic_strain,fv0,fsig0,fT0,fgamp0,prop,Velbc);
 
     V = X(1:nnode);
-    
-    figure(1)
-    plot(V)
-    axis([0 101 -8E5 8E5])
-    pause(.001)
-            
     stress = X(nnode+1:nnode+nel);
     T = X(nnode+nel+1:2*nnode+nel);
     plastic_strain = X(nel+2*nnode+1:2*nel+2*nnode);
@@ -263,4 +266,63 @@ while time < totaltime
     fT0 = fT_new;
     fgamp0 = fgamp_new;
     
+    
+    
+    if Save_V ==1
+        fid_V = fopen(['Shearband1D_Implicit_V_',date_and_time,'.txt'],'a');
+        fprintf(fid_V,' %e',V); %minimum number of digits to be printed is 4, number of digits
+        fprintf(fid_V,'\n');
+        fclose(fid_V);
+    end
+    if Save_d ==1
+        fid_d = fopen(['Shearband1D_Implicit_d_',date_and_time,'.txt'],'a');
+        fprintf(fid_d,' %e',d); %minimum number of digits to be printed is 4, number of digits
+        fprintf(fid_d,'\n');
+        fclose(fid_d);
+    end
+    if Save_timeandres ==1
+        fid_timeandres = fopen(['Shearband1D_Implicit_timeandres_',date_and_time,'.txt'],'a');
+        fprintf(fid_timeandres,'%e %e %e %e %e %e',time*1e6,norm(Residual(1:nnode)),norm(Residual(nnode+1:nnode+nel)),norm(Residual(nnode+nel+1:2*nnode+nel)),norm(Residual(nel+2*nnode+1:2*nel+2*nnode))); %minimum number of digits to be printed is 4, number of digits
+        fprintf(fid_timeandres,'\n');
+        fclose(fid_timeandres);
+    end
+    if Save_T ==1
+        fid_T = fopen(['Shearband1D_Implicit_T_',date_and_time,'.txt'],'a');
+        fprintf(fid_T,' %e',T); %minimum number of digits to be printed is 4, number of digits
+        fprintf(fid_T,'\n');
+        fclose(fid_T);
+    end
+    if Save_stress ==1
+        fid_stress = fopen(['Shearband1D_Implicit_stress_',date_and_time,'.txt'],'a');
+        fprintf(fid_stress,' %e',stress); %minimum number of digits to be printed is 4, number of digits
+        fprintf(fid_stress,'\n');
+        fclose(fid_stress);
+    end
+    if Save_plastic_strain ==1
+        fid_plastic_strain = fopen(['Shearband1D_Implicit_plastic_strain_',date_and_time,'.txt'],'a');  
+        fprintf(fid_plastic_strain,' %e',plastic_strain); %minimum number of digits to be printed is 4, number of digits
+        fprintf(fid_plastic_strain,'\n');
+        fclose(fid_plastic_strain);
+    end
+    if Save_residuals ==1
+        fid_res_mo = fopen(['Shearband1D_Implicit_momentum_residual_',date_and_time,'.txt'],'a');
+        fprintf(fid_res_mo,' %e',Residual(1:nnode)); %minimum number of digits to be printed is 4, number of digits
+        fprintf(fid_res_mo,'\n');
+        fclose(fid_res_mo);
+        
+        fid_res_en = fopen(['Shearband1D_Implicit_energy_residual_',date_and_time,'.txt'],'a');
+        fprintf(fid_res_en,' %e',Residual(nnode+nel+1:2*nnode+nel)); %minimum number of digits to be printed is 4, number of digits
+        fprintf(fid_res_en,'\n');
+        fclose(fid_res_en);
+        
+        fid_res_el = fopen(['Shearband1D_Implicit_elasticity_residual_',date_and_time,'.txt'],'a');
+        fprintf(fid_res_el,' %e',Residual(nnode+1:nnode+nel)); %minimum number of digits to be printed is 4, number of digits
+        fprintf(fid_res_el,'\n');
+        fclose(fid_res_el);
+        
+        fid_res_ys = fopen(['Shearband1D_Implicit_yield_surface_residual_',date_and_time,'.txt'],'a');
+        fprintf(fid_res_ys,' %e',Residual(nel+2*nnode+1:2*nel+2*nnode)); %minimum number of digits to be printed is 4, number of digits
+        fprintf(fid_res_ys,'\n');
+        fclose(fid_res_ys);
+    end
 end

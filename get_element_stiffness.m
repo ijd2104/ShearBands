@@ -15,7 +15,7 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,flg)
 % f   -  element forcings at the current Newton iteration
 
     %% Initialization
-    global t TimeIntPar matProp
+    global t TimeIntPar matProp v_BC
     
     v0 = x0(1:2);
     s0 = x0(3);
@@ -158,31 +158,31 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,flg)
     end
     
     %% Normalization
-%     normv = 1E4; %wild guess
-%     norms = 457.3E6; %yield shear stress
-%     normT = 298; %reference temperature
-%     normg = 457.3E6/200E9; %yield strain
-%     
-%     r.v = r.v/normv;
-%     r.s = r.s/norms;
-%     r.T = r.T/normT;
-%     r.g = r.g/normg;
-%     
-%     j.vv = j.vv/normv;
-%     j.vs = j.vs/normv;
-%     
-%     j.sv = j.sv/norms;
-%     j.ss = j.ss/norms;
-%     j.sT = j.sT/norms;
-%     j.sg = j.sg/norms;
-%     
-%     j.Ts = j.Ts/normT;
-%     j.TT = j.TT/normT;
-%     j.Tg = j.Tg/normT;
-%     
-%     j.gs = j.gs/normg;
-%     j.gT = j.gT/normg;
-%     j.gg = j.gg/normg;
+    normv = 1.5*v_BC*pi/t.ramp; %maximum vel (equivalent to 15)
+    norms = 457.3E6; %yield shear stress
+    normT = 298; %reference temperature
+    normg = 1E-8;%457.3E6/200E9; %yield strain
+    
+    r.v = r.v/normv;
+    r.s = r.s/norms;
+    r.T = r.T/normT;
+    r.g = r.g/normg;
+    
+    j.vv = j.vv/normv;
+    j.vs = j.vs/normv;
+    
+    j.sv = j.sv/norms;
+    j.ss = j.ss/norms;
+    j.sT = j.sT/norms;
+    j.sg = j.sg/norms;
+    
+    j.Ts = j.Ts/normT;
+    j.TT = j.TT/normT;
+    j.Tg = j.Tg/normT;
+    
+    j.gs = j.gs/normg;
+    j.gT = j.gT/normg;
+    j.gg = j.gg/normg;
     
 end
 

@@ -1,6 +1,6 @@
 function [g_psi] = get_g_psi(sige,gampe,Te,xe,imper,prop,psi)
 
-x_psi = (xe(1)*(1-psi)+xe(2)*(1+psi))/2;
+x_psi = (xe(1)*(1-psi)+xe(2)*(1+psi))/2
 T_psi = (Te(1)*(1-psi)+Te(2)*(1+psi))/2;
 
 %set imperfection

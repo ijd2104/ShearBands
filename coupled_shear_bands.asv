@@ -28,17 +28,11 @@ function X = coupled_shear_bands()
 end
 
 function setupData()
-    global t TimeIntPar NewtonPar matProp modelPar v_BC
+    global t TimeIntPar NewtonPar matProp modelPar v_BC L
     
-    %Time data
-    t.total = 2.5E-6;
-    t.steps = 500;
-    t.dt = t.total/t.steps;
-    t.ramp = t.total/2.5;
-    t.curr = 0;
-    
-    %Initial velocity
-    v_BC = t.ramp*10/pi;
+    %Initial velocity and Length
+    v_BC = 1E-4;
+    L = 1E-3;
     
     %Newton's method parameters
     NewtonPar.NormTol = 1E-5;
@@ -56,6 +50,14 @@ function setupData()
     matProp.G = 77.5E9;             %Pa shear modulus
     matProp.chi = 0.9;              % Taylor-Quinney coefficient
     
+    c = sqrt(matProp.E/matProp.rho);
+    %Time data
+    t.total = 2.5E-6;
+    t.steps = 500;
+    t.dt = t.total/t.steps;
+    t.ramp = t.total/2.5;
+    t.curr = 0;
+    
     %Johnson Cook Parameters for 4340 Steel
     modelPar.A = 457.3E6;            %Pa yield shear stress
     modelPar.B = 294.4E6;            %Pa shear stress hardening parameter
@@ -68,11 +70,9 @@ function setupData()
 end
 
 function getMesh()
-    global N u
+    global N u L
     
-    L = 1E-3;
-    
-    N.elem = 100;
+    N.elem = 200;
     u = 0:(L/N.elem):L; %position of nodes
     N.vnode = numel(u);
     N.Tnode = numel(u);
@@ -101,24 +101,30 @@ function Xk = newtonIter(Xt)
     dX.D = -X.D+velBC;
     R.D = -dX.D;
     
+%      if condest(J.NN)== Inf
+%          J.NN = J.NN+diag(ones(1,3)*1E-7);
+%      end
     dX.N = -J.NN\(R.N+J.ND*dX.D);
     Xk = [X.D+dX.D; X.N+dX.N];
     Xk = unPartition(Xk);
-    
     if ~isreal(Xk)
-        error('Xk became imaginary')
-    end
+        error('Xk 
+
     
     for k = 1:niter
         [J,R,F] = matrixAssembly(Xt,Xk,F);
         [J,R,X] = applyBC(J,R,Xk);
+        
+%          if condest(J.NN)==Inf
+%              J.NN = J.NN+diag(ones(1,3)*1E-7);
+%          end
         
         if norm(R.N) < ntol
             break
         end
         
         if k==20
-            error('Exceeded 20 Newton iterations')
+            error('stop')
         end
         
         dX.N = -J.NN\R.N;
@@ -126,10 +132,11 @@ function Xk = newtonIter(Xt)
         Xk = [X.D; X.N+dX.N];
         
         Xk = unPartition(Xk);
-        
-        if ~isreal(Xk)
-            error('Xk became imaginary')
-        end
+        max(Xk(vnode0:vnode))
+        max(Xk(snode0:snode))
+        max(Xk(Tnode0:Tnode))
+        max(Xk(gnode0:gnode))
+        disp('-------------')
     end
     
     vmax = 1.5*v_BC*pi/t.ramp;
