@@ -25,6 +25,7 @@ function X = coupled_shear_bands()
         end
     end
     X = [X0 cell2mat(X)];
+    plot(X(N.vnode+N.snode,:))
 end
 
 function setupData()
@@ -154,19 +155,19 @@ function Xk = newtonIter(Xt)
         end
     end
     
-    vmax = 1.5*v_BC;
-    if t.curr == t.dt
-        figure(1)
-        plot(Xk(1:N.vnode))
-    else
-        p = findobj(gcf,'Type','Line');
-        set(p,'YData',Xk(1:N.vnode));
-    end
-    axis([1 N.vnode -vmax vmax])
-    set(gcf,'name','Coupled Shear Bands','numbertitle','off')
-    xlabel('Nodes')
-    ylabel('Velocity m/s')
-    pause(0.0001)
+%     vmax = 1.5*v_BC;
+%     if t.curr == t.dt
+%         figure(1)
+%         plot(Xk(1:N.vnode))
+%     else
+%         p = findobj(gcf,'Type','Line');
+%         set(p,'YData',Xk(1:N.vnode));
+%     end
+%     axis([1 N.vnode -vmax vmax])
+%     set(gcf,'name','Coupled Shear Bands','numbertitle','off')
+%     xlabel('Nodes')
+%     ylabel('Velocity m/s')
+%     pause(0.0001)
 end
 
 function [J,R,F] = matrixAssembly(Xt,Xn,F0)

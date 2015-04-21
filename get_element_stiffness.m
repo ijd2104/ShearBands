@@ -261,10 +261,9 @@ function [F1,F2] = get_F(s,g,dgds)
 end
 
 function nimp = set_imperfection(x)
-    e = 1E1;
     ared = 0.01;
     r0 = 10E-6;
     x0 = 1E-3/2;
     rn = abs(x-x0)/r0;
-    nimp = 1-ared*(2/(e^rn+e^(-rn)));
+    nimp = 1-ared*(2/(exp(rn)+exp(-rn)));
 end
