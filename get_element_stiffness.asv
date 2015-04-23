@@ -16,7 +16,7 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg,mmax,e)
 
     %% Initialization
     global t TimeIntPar matProp modelPar v_BC N egv
-    mide = round(N.elem/2);
+    mide = N.elem/2;
     
     v0 = x0(1:2);
     s0 = x0(3);
@@ -162,18 +162,11 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg,mmax,e)
     end
     
     if mide==e
-        k.vv = zeros(2,2);
-        
-        k.vT = zeros(2,2);
-        k.vg = zeros(2,1);
-        
-        k.Tv = zeros(2,2);
-        k.gv = zeros(1,2);
         mm = blkdiag(m.v,m.s,m.T,m.g);
         kk = [k.vv k.vs k.vT k.vg;
-              k.sv G.ss G.sT G.sg;
-              k.Tv G.Ts k.TT+G.TT G.Tg;
-              k.gv G.gs G.gT G.gg];
+              k.sv k.ss k.sT k.sg;
+              j.Tv j.Ts k.TT k.Tg;
+              j.gv j.gs k.gT k.gg];
         egv = eig(kk,mm);
     end
     %% Normalization
