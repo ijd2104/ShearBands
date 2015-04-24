@@ -1,77 +1,148 @@
-function [X,EIGEN] = coupled_shear_bands()
+function [X,EIGENr,EIGENi,flg,en] = coupled_shear_bands()
 %LINEARELASTICITY Solves linear elasticity problem using mixed FEM
 %   Saves velocity and displacement at intervals
-    global t N egv
+    global t N egv matProp modelPar
 
     setupData();
     getMesh();
 
     i = 10; %save interval
-    X = num2cell(zeros(N.node,t.steps/i),1);
-    EIGEN = num2cell(zeros(N.node,t.steps/i),1);
+    X = num2cell([zeros(N.node,1),zeros(N.node,t.steps/i)],1);
+    EIGENr = num2cell([zeros(6,1),zeros(6,t.steps/i)],1);
+    EIGENi = num2cell([zeros(6,1),zeros(6,t.steps/i)],1);
     X0 = zeros(N.node,1);
-
+    
+    
     %Initialize temperature
     T1 = N.vnode+N.snode+1;
     Tn = N.vnode+N.snode+N.Tnode;
     X0(T1:Tn) = 310;
-
-    %for plotting
-    snode = N.vnode+1;
-    stress = [];
     strs = 0;
 
+    %for plotting
+%     snode = N.vnode+1+200;
+%     stress = [];
+%     eigv = [];
+%     tm = [];
+    flg =t.steps;
     Xt = X0;
     for n = 2:t.steps
+        X0 = Xt;
         t.iter = n;
         t.curr = t.curr+t.dt;
-        clc
-        disp('Progress: ')
-        disp(strcat(num2str(t.curr/t.total*100),'%'))
-        Xt = newtonIter(Xt);
+        %clc
+        %disp('Progress: ')
+        %disp(strcat(num2str(t.curr/t.total*100),'%'))
+        Xt = newtonIter(X0);
 
-        if Xt(N.vnode+1)<0.9*strs
+        if Xt(N.vnode+1)<0.8*strs
             break
+        elseif Xt(N.vnode+1)>strs
+            strs = Xt(N.vnode+1);
         end
 
-        if mod(n,10)==0
-            X{n/i} = Xt;
-            EIGEN{n/i} = egv;
-            if Xt(N.vnode+1)>strs
-                strs = Xt(N.vnode+1);
+        if mod(n,10)==0||n==2
+            disp(strcat(num2str(t.curr/t.total*100),'%'))
+            try
+                X{n/i} = Xt;
+                EIGENr{n/i} = egv.r;
+                EIGENi{n/i} = egv.i;
+                if max(egv.r) > 1
+                    matProp.G = 150E9;
+                    matProp.rho = 5E3;
+                    Xt = newtonIter(X0);
+                    EIGENr{n/i+1} = egv.r;
+                    EIGENi{n/i+1} = egv.i;
+                    break
+                end
+            catch
+                X{1} = Xt;
+                EIGENr{1} = egv.r;
+                EIGENi{1} = egv.i;
             end
+%%             stress = [stress Xt(snode)];
+%             eigv = [eigv egv];
+%             tm = [tm n/625];
+%             if n==2
+%                 h = figure;
+%                 astress = subplot(2,1,1);
+%                 plot(tm,stress,'LineWidth',2)
+%                 
+%                 aeig = subplot(2,1,2);
+%                 plot(tm,eigv(6,:),'LineWidth',2)
+%             else
+%                 lstress = findobj(astress,'Type','Line');
+%                 set(lstress,'XData',tm,'YData',stress);
+%                 leig = findobj(aeig,'Type','Line');
+%                 set(leig,'XData',tm,'YData',eigv(6,:));
+%                 %drawnow
+%             end
+%             
+%             set(h,'color','w');
+%             grid(astress,'on')
+%             axis(astress,[0 1.0 0 8E8])
+%             xlabel(astress,'Nominal Strain')
+%             ylabel(astress,'Stress (Pa)')
+%             set(astress,...
+%                 'Units','normalized',...
+%                 'XTick',0:0.25:1,...
+%                 'YTick',0:2E8:8E8,...
+%                 'FontUnits','points',...
+%                 'FontWeight','normal',...
+%                 'FontSize',12,...
+%                 'FontName','Times',...
+%                 'GridLineStyle','--');
+%             
+%             grid(aeig,'on')
+%             axis(aeig,[0 1 -0.5E4 2.5E4])
+%             xlabel(aeig,'Nominal Strain')
+%             ylabel(aeig,'Eigenvalue')
+%             set(aeig,...
+%                 'Units','normalized',...
+%                 'XTick',0:0.25:1,...
+%                 'YTick',-0.5E4:0.5E4:2.5E4,...
+%                 'FontUnits','points',...
+%                 'FontWeight','normal',...
+%                 'FontSize',12,...
+%                 'FontName','Times',...
+%                 'GridLineStyle','--');
+%             drawnow
+%             
+%             
+%             frame = getframe(h);
+%             im = frame2im(frame);
+%             [imind,cm] = rgb2ind(im,256);
+%             outfile = 'stresseig3.gif';
+%             
+%             if n == 2
+%                 imwrite(imind,cm,outfile,'gif','DelayTime',0.3,'loopcount',inf);
+%             else
+%                 imwrite(imind,cm,outfile,'gif','DelayTime',0.3,'writemode','append');
+%             end
         end
-
-        stress = [stress Xt(snode)];
-        if n ==2
-            plot(stress);
-        else
-            p = findobj(gcf,'Type','Line');
-            set(p,'YData',stress);
-        end
-        axis([0 t.steps 0 8E8]);
-        pause(0.001)
+        
     end
     i = floor(n/10);
-    X = [X0 cell2mat(X(1:i))];
-    EIGEN = cell2mat(EIGEN(1:i));
+    X = cell2mat(X(1:i));
+    EIGENr = cell2mat(EIGENr(1:i+1));
+    EIGENi = cell2mat(EIGENi(1:i+1));
 end
 
 function setupData()
     global t TimeIntPar NewtonPar matProp modelPar v_BC
     
     %Time data
-    t.total = 2.5E-5;%75E-6;
+    t.total = 2.5E-4;
     t.steps = 500;
     t.dt = t.total/t.steps;
     if t.dt<5E-11
         pause
     end
-    t.ramp = t.total/2;
+    t.ramp = t.total/2.5;
     t.curr = 0;
     
     %Initial velocity
-    v_BC = 5E1;
+    v_BC = 5E0;
     
     %Newton's method parameters
     NewtonPar.NormTol = 1E-5;

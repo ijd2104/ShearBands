@@ -174,7 +174,16 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg,mmax,e)
               k.sv G.ss G.sT G.sg;
               k.Tv G.Ts k.TT+G.TT G.Tg;
               k.gv G.gs G.gT G.gg];
-        egv = eig(kk,mm);
+        egvc = eig(kk,mm);
+        egv.r = real(egvc);
+        egv.i = imag(egvc);
+        [egv.r,I] = sort(egv.r);
+        egv.i = egv.i(I);
+%         egv = [egvr;egvi];
+%         
+%          if max(egvr)>0.1
+%              save('statevars.mat','x0','x','h','f0','ue','flg','mmax','e')
+%          end
     end
     %% Normalization
     if mmax.v==0
