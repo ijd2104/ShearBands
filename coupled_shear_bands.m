@@ -19,20 +19,12 @@ function [X,EIGENr,EIGENi,flg] = coupled_shear_bands()
     X0(T1:Tn) = 310;
     strs = 0;
 
-    %for plotting
-%     snode = N.vnode+1+200;
-%     stress = [];
-%     eigv = [];
-%     tm = [];
     flg =t.steps;
     Xt = X0;
     for n = 2:t.steps
         X0 = Xt;
         t.iter = n;
         t.curr = t.curr+t.dt;
-        %clc
-        %disp('Progress: ')
-        %disp(strcat(num2str(t.curr/t.total*100),'%'))
         Xt = newtonIter(X0);
 
         if Xt(N.vnode+1)<0.8*strs
@@ -59,65 +51,6 @@ function [X,EIGENr,EIGENi,flg] = coupled_shear_bands()
                 EIGENr{1} = egv.r;
                 EIGENi{1} = egv.i;
             end
-%%             stress = [stress Xt(snode)];
-%             eigv = [eigv egv];
-%             tm = [tm n/625];
-%             if n==2
-%                 h = figure;
-%                 astress = subplot(2,1,1);
-%                 plot(tm,stress,'LineWidth',2)
-%                 
-%                 aeig = subplot(2,1,2);
-%                 plot(tm,eigv(6,:),'LineWidth',2)
-%             else
-%                 lstress = findobj(astress,'Type','Line');
-%                 set(lstress,'XData',tm,'YData',stress);
-%                 leig = findobj(aeig,'Type','Line');
-%                 set(leig,'XData',tm,'YData',eigv(6,:));
-%                 %drawnow
-%             end
-%             
-%             set(h,'color','w');
-%             grid(astress,'on')
-%             axis(astress,[0 1.0 0 8E8])
-%             xlabel(astress,'Nominal Strain')
-%             ylabel(astress,'Stress (Pa)')
-%             set(astress,...
-%                 'Units','normalized',...
-%                 'XTick',0:0.25:1,...
-%                 'YTick',0:2E8:8E8,...
-%                 'FontUnits','points',...
-%                 'FontWeight','normal',...
-%                 'FontSize',12,...
-%                 'FontName','Times',...
-%                 'GridLineStyle','--');
-%             
-%             grid(aeig,'on')
-%             axis(aeig,[0 1 -0.5E4 2.5E4])
-%             xlabel(aeig,'Nominal Strain')
-%             ylabel(aeig,'Eigenvalue')
-%             set(aeig,...
-%                 'Units','normalized',...
-%                 'XTick',0:0.25:1,...
-%                 'YTick',-0.5E4:0.5E4:2.5E4,...
-%                 'FontUnits','points',...
-%                 'FontWeight','normal',...
-%                 'FontSize',12,...
-%                 'FontName','Times',...
-%                 'GridLineStyle','--');
-%             drawnow
-%             
-%             
-%             frame = getframe(h);
-%             im = frame2im(frame);
-%             [imind,cm] = rgb2ind(im,256);
-%             outfile = 'stresseig3.gif';
-%             
-%             if n == 2
-%                 imwrite(imind,cm,outfile,'gif','DelayTime',0.3,'loopcount',inf);
-%             else
-%                 imwrite(imind,cm,outfile,'gif','DelayTime',0.3,'writemode','append');
-%             end
         end
         
     end
