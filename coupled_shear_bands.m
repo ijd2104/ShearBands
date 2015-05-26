@@ -1,4 +1,4 @@
-function [X,EIGENr,EIGENi,flg,en] = coupled_shear_bands()
+function [X,EIGENr,EIGENi,flg] = coupled_shear_bands()
 %LINEARELASTICITY Solves linear elasticity problem using mixed FEM
 %   Saves velocity and displacement at intervals
     global t N egv matProp modelPar
@@ -48,8 +48,7 @@ function [X,EIGENr,EIGENi,flg,en] = coupled_shear_bands()
                 EIGENr{n/i} = egv.r;
                 EIGENi{n/i} = egv.i;
                 if max(egv.r) > 1
-                    matProp.G = 150E9;
-                    matProp.rho = 5E3;
+                    modelPar.A = 457.3E12;
                     Xt = newtonIter(X0);
                     EIGENr{n/i+1} = egv.r;
                     EIGENi{n/i+1} = egv.i;
