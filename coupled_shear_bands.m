@@ -1,14 +1,11 @@
-function [X,EIGENr,EIGENi,flg] = coupled_shear_bands()
+function coupled_shear_bands()
 %LINEARELASTICITY Solves linear elasticity problem using mixed FEM
 %   Saves velocity and displacement at intervals
-    global t N egv matProp modelPar
+    global t N
 
     setupData();
     getMesh();
 
-    X = num2cell([zeros(N.node,1),zeros(N.node,t.steps/i)],1);
-    EIGENr = num2cell([zeros(6,1),zeros(6,t.steps/i)],1);
-    EIGENi = num2cell([zeros(6,1),zeros(6,t.steps/i)],1);
     X0 = zeros(N.node,1);
     
     %Initialize temperature
@@ -17,7 +14,6 @@ function [X,EIGENr,EIGENi,flg] = coupled_shear_bands()
     X0(T1:Tn) = 310;
     strs = 0;
 
-    flg =t.steps;
     Xt = X0;
     for n = 2:t.steps
         X0 = Xt;
@@ -30,38 +26,7 @@ function [X,EIGENr,EIGENi,flg] = coupled_shear_bands()
         elseif Xt(N.vnode+1)>strs
             strs = Xt(N.vnode+1);
         end
-        
-        
-        
-        
-        
-        
-        
-        if mod(n,10)==0||n==2
-            disp(strcat(num2str(t.curr/t.total*100),'%'))
-            try
-                X{n/i} = Xt;
-                EIGENr{n/i} = egv.r;
-                EIGENi{n/i} = egv.i;
-                if max(egv.r) > 0
-                    modelPar.A = 457.3E12;
-                    Xt = newtonIter(X0);
-                    EIGENr{n/i+1} = egv.r;
-                    EIGENi{n/i+1} = egv.i;
-                    break
-                end
-            catch
-                X{1} = Xt;
-                EIGENr{1} = egv.r;
-                EIGENi{1} = egv.i;
-            end
-        end
-        
-        
-        
     end
-    EIGENr = cell2mat(EIGENr(1:i+1));
-    EIGENi = cell2mat(EIGENi(1:i+1));
 end
 
 function setupData()
