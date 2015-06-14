@@ -194,6 +194,10 @@ function [J,R,F] = matrixAssembly(Xt,Xn,F0)
     J.gT = zeros(N.gnode,N.Tnode);
     J.gg = zeros(N.gnode,N.gnode);
     
+    mmax.v = max(Xn(1:N.vnode));
+    mmax.s = max(Xn(N.vnode+1:N.vnode+N.snode));
+    mmax.T = max(Xn(N.vnode+N.snode+1:N.vnode+N.snode+N.Tnode));
+    mmax.g = max(Xn(N.vnode+N.snode+N.Tnode+1:end));
     %Assemble matrices
     for e = 1:N.elem
         
@@ -211,7 +215,7 @@ function [J,R,F] = matrixAssembly(Xt,Xn,F0)
         x  = Xn(LL);
         f0 = F0(LL);
         
-        [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,6);
+        [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,6,mmax,e);
         
         % Residual vector
         R.v(L) = R.v(L)+r.v;
@@ -310,7 +314,7 @@ function v = get_vel()
     v = v_BC*f;
 end
 
-function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg) 
+function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg,mmax,e) 
 % Inputs
 % x0  -  x at the previous time step
 % x   -  x at the current Newton iteration
@@ -329,7 +333,8 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg)
 % f   -  element forcings at the current Newton iteration
 
     %% Initialization
-    global t TimeIntPar matProp modelPar v_BC
+    global t TimeIntPar matProp modelPar v_BC N egv
+    mide = round(N.elem/2);
     
     v0 = x0(1:2);
     s0 = x0(3);
@@ -474,12 +479,54 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg)
         j = [];
     end
     
-    %% Normalization
-    normv = v_BC;           %velocity at the boundary condition
-    norms = modelPar.A;     %yield shear stress
-    normT = modelPar.To;    %reference temperature
-    normg = 457.3E6/200E9; %yield strain
+    if e==mide             %Middle element
+        k.vv = zeros(2,2);
         
+        k.vT = zeros(2,2);
+        k.vg = zeros(2,1);
+        
+        k.Tv = zeros(2,2);
+        k.gv = zeros(1,2);
+        mm = blkdiag(m.v,m.s,m.T,m.g);
+        kk = [k.vv k.vs k.vT k.vg;
+              k.sv G.ss G.sT G.sg;
+              k.Tv G.Ts k.TT+G.TT G.Tg;
+              k.gv G.gs G.gT G.gg];
+        egvc = eig(kk,mm);
+        egv.r = real(egvc);
+        egv.i = imag(egvc);
+        [egv.r,I] = sort(egv.r);
+        egv.i = egv.i(I);
+%         egv = [egvr;egvi];
+%         
+%          if max(egvr)>0.1
+%              save('statevars.mat','x0','x','h','f0','ue','flg','mmax','e')
+%          end
+    end
+    %% Normalization
+    if mmax.v==0
+        normv = v_BC;           %velocity at the boundary condition
+    else
+        normv = mmax.v;
+    end
+    
+    if mmax.s == 0;
+        norms = modelPar.A;     %yield shear stress
+    else
+        norms = mmax.s;
+    end
+    
+    if mmax.T==0
+        normT = modelPar.To;    %reference temperature
+    else
+        normT = mmax.T;
+    end
+    
+    if mmax.g==0
+        normg = 457.3E6/200E9; %yield strain
+    else
+        normg = mmax.g;
+    end
     r.v = r.v/normv;
     r.s = r.s/norms;
     r.T = r.T/normT;
