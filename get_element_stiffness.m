@@ -8,6 +8,8 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg,mmax,e)
 %        3 for residual only
 %        5 for jacobian only
 %        6 for jacobian + residual
+%        8 M
+%        9 K
 
 % Outputs
 % r   -  element residual
@@ -161,7 +163,7 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg,mmax,e)
         j = [];
     end
     
-    if mide==e
+    if e==mide             %Middle element
         k.vv = zeros(2,2);
         
         k.vT = zeros(2,2);
