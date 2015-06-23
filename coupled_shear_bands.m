@@ -649,7 +649,7 @@ end
 
 function [w,v] = myeig(k,m)
     [v,w] = eig(k,m,'vector');
-    [w,i] = sort(real(w),'ascend');
+    [w,i] = sort(real(w),'descend');
     v = v(:,i);
 end
 
