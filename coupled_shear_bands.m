@@ -29,8 +29,8 @@ function coupled_shear_bands()
         [xe,he,ue] = getx(Xt,e);
         xhist(1:3) = xhist(2:4);
         xhist(4) = xe;
-        Me = get_element_stiffness(xhist(3),xhist(4),he,[],ue,8);
-        Ke = get_element_stiffness(xhist(3),xhist(4),he,[],ue,9);
+        [Me,~,~] = get_element_stiffness(xhist(3),xhist(4),he,[],ue,8);
+        [Ke,~,~] = get_element_stiffness(xhist(3),xhist(4),he,[],ue,9);
         [w,v] = myeig(Ke,Me);
         if real(w(1)) > tol && flgRL
             compute_root_locus(xhist(1),xhist(2),he,w,v);
@@ -341,7 +341,7 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg)
 %        9 Ke
 
 % Outputs
-% r   -  element residual
+% r   -  element residual (ke or me for flg=8 or flg=9
 % j   -  element jacobian
 % f   -  element forcings at the current Newton iteration
 
@@ -353,14 +353,21 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg)
     T0 = x0(4:5);
     p0 = x0(6);
     
-    fs0 = f0(3);
-    fT0 = f0(4:5);
-    fg0 = f0(6);
-
     v = x(1:2);
     s = x(3);
     T = x(4:5);
     p = x(6);
+    
+    if flg==3 || flg==6
+        fs0 = f0(3);
+        fT0 = f0(4:5);
+        fg0 = f0(6);
+        
+        %Forcings
+        f.s = 0;
+        f.T = zeros(2,1);
+        f.g =0;
+    end
 
     %Initialize matrices
     %Mass terms
@@ -373,11 +380,6 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg)
     k.vs = zeros(2,1);
     k.sv = zeros(1,2);
     k.TT = zeros(2,2);
-    
-    %Forcings
-    f.s = 0;
-    f.T = zeros(2,1);
-    f.g =0;
     
     %Non linear terms
     G.ss = 0;
@@ -448,6 +450,29 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg)
         G.gg = G.gg+W(i)*dgdp*(Ng'*Ng)*J;
     end
     
+    if flg==8
+        r = blkdiag(m.v,m.s,m.T,m.g);
+        j = [];
+        f = [];
+        return
+    end
+    
+    if flg==9
+        k.vv = zeros(2,2);
+        k.vT = zeros(2,2);
+        k.vg = zeros(2,1);
+        k.Tv = zeros(2,2);
+        k.gv = zeros(1,2);
+        
+        r = [k.vv k.vs k.vT k.vg;
+             k.sv G.ss G.sT G.sg;
+             k.Tv G.Ts k.TT+G.TT G.Tg;
+             k.gv G.gs k.gT G.gg];
+         j = [];
+         f = [];
+         return
+    end
+    
     %% Compute residual
     if flg==3 || flg==6 %residual / residual+jacobian
         dt = t.dt;
@@ -492,32 +517,33 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg)
     end
     
     %% Normalization
-    normv = v_BC;           %velocity at the boundary condition
-    norms = modelPar.A;     %yield shear stress
-    normT = modelPar.To;    %reference temperature
-    normg = 457.3E6/200E9; %yield strain
+    if flg ==3 || flg==5 || flg==6
+        normv = v_BC;           %velocity at the boundary condition
+        norms = modelPar.A;     %yield shear stress
+        normT = modelPar.To;    %reference temperature
+        normg = 457.3E6/200E9; %yield strain
         
-    r.v = r.v/normv;
-    r.s = r.s/norms;
-    r.T = r.T/normT;
-    r.g = r.g/normg;
-    
-    j.vv = j.vv/normv;
-    j.vs = j.vs/normv;
-    
-    j.sv = j.sv/norms;
-    j.ss = j.ss/norms;
-    j.sT = j.sT/norms;
-    j.sg = j.sg/norms;
-    
-    j.Ts = j.Ts/normT;
-    j.TT = j.TT/normT;
-    j.Tg = j.Tg/normT;
-    
-    j.gs = j.gs/normg;
-    j.gT = j.gT/normg;
-    j.gg = j.gg/normg;
-    
+        r.v = r.v/normv;
+        r.s = r.s/norms;
+        r.T = r.T/normT;
+        r.g = r.g/normg;
+        
+        j.vv = j.vv/normv;
+        j.vs = j.vs/normv;
+        
+        j.sv = j.sv/norms;
+        j.ss = j.ss/norms;
+        j.sT = j.sT/norms;
+        j.sg = j.sg/norms;
+        
+        j.Ts = j.Ts/normT;
+        j.TT = j.TT/normT;
+        j.Tg = j.Tg/normT;
+        
+        j.gs = j.gs/normg;
+        j.gT = j.gT/normg;
+        j.gg = j.gg/normg;
+    end
 end
 
 function [Nv,Ns,NT,Ng,Bv,BT] = get_shape_functions(xi,h)
