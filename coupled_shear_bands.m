@@ -5,6 +5,10 @@ function coupled_shear_bands()
 
     setupData();
     getMesh();
+    
+    tol = 1E-3;
+    e = floor(N.elem/2);
+    xhist = zeros(1,4);
 
     X0 = zeros(N.node,1);
     
@@ -20,7 +24,14 @@ function coupled_shear_bands()
         t.iter = n;
         t.curr = t.curr+t.dt;
         Xt = newtonIter(X0);
-
+        
+        [xe,he,ue] = getx(Xt,e);
+        xhist(1:3) = xhist(2:4);
+        xhist(4) = xe;
+        Me = get_element_stiffness(xhist(3),xhist(4),he,[],ue,8);
+        Ke = get_element_stiffness(xhist(3),xhist(4),he,[],ue,9);
+        
+        
         if Xt(N.vnode+1)<0.8*strs
             break
         elseif Xt(N.vnode+1)>strs
@@ -320,8 +331,8 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg)
 %        3 for residual only
 %        5 for jacobian only
 %        6 for jacobian + residual
-%        8 M
-%        9 K
+%        8 Me
+%        9 Ke
 
 % Outputs
 % r   -  element residual
@@ -581,3 +592,23 @@ function nimp = set_imperfection(x)
     rn = abs(x-x0)/r0;
     nimp = 1-ared*(2/(exp(rn)+exp(-rn)));
 end
+
+
+function [x,h,ue] = getx(X,e)
+    global u N
+    x1 = 6*(e-1)+1;
+    xn = x1+5;
+    x = X(x1:xn);
+    
+    L = N.conn(e,:);
+    ue = u(L);
+    h = abs(ue(2)-ue(1));
+end
+
+function [w,v] = myeig(k,m)
+    [v,w] = eig(k,m,'vector');
+    [w,i] = sort(real(w),'ascend');
+    v = v(:,i);
+end
+
+function compute_root_locus(x0,xm,h,w,v)
