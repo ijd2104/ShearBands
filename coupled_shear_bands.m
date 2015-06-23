@@ -642,16 +642,19 @@ function [w,v] = myeig(k,m)
     v = v(:,i);
 end
 
-function compute_root_locus(x0,xm,h,w,v)
+function compute_root_locus(x0,xm,h,w0,v0)
     N = 10;
-    eigplot = zeros(6,N);
+    eigval = zeros(6,N);
+    eigvec = cell(1,7);
     for i = 1:N
         update_model(i)
         [Me,~,~] = get_element_stiffness(x0,xm,he,[],ue,8);
         [Ke,~,~] = get_element_stiffness(x0,xm,he,[],ue,9);
-        [w,~] = myeig(Ke,Me);
-        eigplot(:,i) = w(:);
+        [w,v] = myeig(Ke,Me);
+        eigval(:,i) = w(:);
+        eigvec{i}= v;
     end
-    plot(eigplot(1,:));
-    plot(eigplot(2,:));
+    eigval = [w0 eigval];
+    eigvec{i} = v0;
+    save('eigv.mat','eigval','eigvec')
 end
