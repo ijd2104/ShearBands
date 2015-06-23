@@ -625,7 +625,6 @@ function nimp = set_imperfection(x)
     nimp = 1-ared*(2/(exp(rn)+exp(-rn)));
 end
 
-
 function [x,h,ue] = getx(X,e)
     global u N
     x1 = 6*(e-1)+1;
@@ -644,3 +643,15 @@ function [w,v] = myeig(k,m)
 end
 
 function compute_root_locus(x0,xm,h,w,v)
+    N = 10;
+    eigplot = zeros(6,N);
+    for i = 1:N
+        update_model(i)
+        [Me,~,~] = get_element_stiffness(x0,xm,he,[],ue,8);
+        [Ke,~,~] = get_element_stiffness(x0,xm,he,[],ue,9);
+        [w,~] = myeig(Ke,Me);
+        eigplot(:,i) = w(:);
+    end
+    plot(eigplot(1,:));
+    plot(eigplot(2,:));
+end
