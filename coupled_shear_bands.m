@@ -9,6 +9,7 @@ function coupled_shear_bands()
     tol = 1E-3;
     e = floor(N.elem/2);
     xhist = zeros(1,4);
+    flgRL = 1;
 
     X0 = zeros(N.node,1);
     
@@ -30,7 +31,12 @@ function coupled_shear_bands()
         xhist(4) = xe;
         Me = get_element_stiffness(xhist(3),xhist(4),he,[],ue,8);
         Ke = get_element_stiffness(xhist(3),xhist(4),he,[],ue,9);
-        
+        [w,v] = myeig(Ke,Me);
+        if real(w(1)) > tol && flgRL
+            compute_root_locus(xhist(1),xhist(2),he,w,v);
+            flgRL = 0;
+            error('Program terminated')
+        end
         
         if Xt(N.vnode+1)<0.8*strs
             break
