@@ -8,7 +8,8 @@ function coupled_shear_bands()
     
     tol = 1E-3;
     e = floor(N.elem/2);
-    xhist = zeros(1,4);
+    xhist = zeros(6,4);
+    xhist = num2cell(xhist,1);
     flgRL = 1;
 
     X0 = zeros(N.node,1);
@@ -27,13 +28,18 @@ function coupled_shear_bands()
         Xt = newtonIter(X0);
         
         [xe,he,ue] = getx(Xt,e);
-        xhist(1:3) = xhist(2:4);
-        xhist(4) = xe;
-        [Me,~,~] = get_element_stiffness(xhist(3),xhist(4),he,[],ue,8);
-        [Ke,~,~] = get_element_stiffness(xhist(3),xhist(4),he,[],ue,9);
+        xhist{1} = xhist{2};
+        xhist{2} = xhist{3};
+        xhist{3} = xhist{4};
+        xhist{4} = xe;
+        [Me,~,~] = get_element_stiffness(xhist{3},xhist{4},he,[],ue,8);
+        [Ke,~,~] = get_element_stiffness(xhist{3},xhist{4},he,[],ue,9);
         [w,v] = myeig(Ke,Me);
+        if n == 250
+            pause
+        end
         if real(w(1)) > tol && flgRL
-            compute_root_locus(xhist(1),xhist(2),he,w,v);
+            compute_root_locus(xhist{1},xhist{2},he,w,v);
             flgRL = 0;
             error('Program terminated')
         end
@@ -467,7 +473,7 @@ function [r,j,f] = get_element_stiffness(x0,x,h,f0,ue,flg)
         r = [k.vv k.vs k.vT k.vg;
              k.sv G.ss G.sT G.sg;
              k.Tv G.Ts k.TT+G.TT G.Tg;
-             k.gv G.gs k.gT G.gg];
+             k.gv G.gs G.gT G.gg];
          j = [];
          f = [];
          return
@@ -627,13 +633,18 @@ end
 
 function [x,h,ue] = getx(X,e)
     global u N
-    x1 = 6*(e-1)+1;
-    xn = x1+5;
-    x = X(x1:xn);
-    
+
     L = N.conn(e,:);
     ue = u(L);
     h = abs(ue(2)-ue(1));
+    
+    Lv = L;
+    Ls = e+N.vnode;
+    LT = Lv+N.vnode+N.elem;
+    Lg = Ls+N.vnode+N.elem;
+    LL = [Lv Ls LT Lg];
+    
+    x  = X(LL);
 end
 
 function [w,v] = myeig(k,m)
@@ -643,11 +654,14 @@ function [w,v] = myeig(k,m)
 end
 
 function compute_root_locus(x0,xm,h,w0,v0)
+    global matProp modelPar
+    E0 = matProp.E;
     N = 10;
+    f = 1:-0.1/(N-1):0.9;
     eigval = zeros(6,N);
     eigvec = cell(1,7);
     for i = 1:N
-        update_model(i)
+        matProp.E = E0*f(i);
         [Me,~,~] = get_element_stiffness(x0,xm,he,[],ue,8);
         [Ke,~,~] = get_element_stiffness(x0,xm,he,[],ue,9);
         [w,v] = myeig(Ke,Me);
@@ -658,3 +672,4 @@ function compute_root_locus(x0,xm,h,w0,v0)
     eigvec{i} = v0;
     save('eigv.mat','eigval','eigvec')
 end
+    
