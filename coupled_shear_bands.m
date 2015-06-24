@@ -1,7 +1,7 @@
 function coupled_shear_bands()
 %LINEARELASTICITY Solves linear elasticity problem using mixed FEM
 %   Saves velocity and displacement at intervals
-    global t N
+    global t N modelPar
 
     setupData();
     getMesh();
@@ -35,11 +35,9 @@ function coupled_shear_bands()
         [Me,~,~] = get_element_stiffness(xhist{3},xhist{4},he,[],ue,8);
         [Ke,~,~] = get_element_stiffness(xhist{3},xhist{4},he,[],ue,9);
         [w,v] = myeig(Ke,Me);
-        if n == 250
-            pause
-        end
-        if real(w(1)) > tol && flgRL
-            compute_root_locus(xhist{1},xhist{2},he,w,v);
+        
+        if real(w(1))>tol && n>250
+            compute_root_locus(xhist{1},xhist{2},he,ue,w,v);
             flgRL = 0;
             error('Program terminated')
         end
@@ -50,6 +48,7 @@ function coupled_shear_bands()
             strs = Xt(N.vnode+1);
         end
     end
+    save('eigv.mat','EIG')
 end
 
 function setupData()
@@ -649,19 +648,38 @@ end
 
 function [w,v] = myeig(k,m)
     [v,w] = eig(k,m,'vector');
-    [w,i] = sort(real(w),'descend');
+    [~,i] = sort(real(w),'descend');
+    w = w(i);
     v = v(:,i);
 end
 
-function compute_root_locus(x0,xm,h,w0,v0)
+function compute_root_locus(x0,xm,he,ue,w0,v0)
     global matProp modelPar
-    E0 = matProp.E;
+    %parameters to modify
+%     rho = matProp.rho;
+%     cp = matProp.cp;
+%     lambda = matProp.lambda;
+%     chi = matProp.chi;
+%     E = matProp.G;
+%   For plastic strain rate
+%     A = modelPar.A*nimp;
+%     B = modelPar.B*nimp;
+%     N = modelPar.N;
+%     To = modelPar.To;
+%     Tm = modelPar.Tm;
+%     m = modelPar.m;
+%     c = modelPar.c;
+%     pdotr = modelPar.pdotr;
+%     
+    P0 = matProp.rho;
     N = 10;
-    f = 1:-0.1/(N-1):0.9;
+    minf = 0.9;
+    maxf = 1;
+    f = maxf:-(maxf-minf)/(N-1):minf;
     eigval = zeros(6,N);
     eigvec = cell(1,7);
     for i = 1:N
-        matProp.E = E0*f(i);
+        matProp.rho = P0*f(i);
         [Me,~,~] = get_element_stiffness(x0,xm,he,[],ue,8);
         [Ke,~,~] = get_element_stiffness(x0,xm,he,[],ue,9);
         [w,v] = myeig(Ke,Me);
@@ -670,6 +688,9 @@ function compute_root_locus(x0,xm,h,w0,v0)
     end
     eigval = [w0 eigval];
     eigvec{i} = v0;
+    eimag = imag(eigval);
+    ereal = real(eigval);
+    plot(ereal(1,:),eimag(1,:),'*')
     save('eigv.mat','eigval','eigvec')
 end
     
